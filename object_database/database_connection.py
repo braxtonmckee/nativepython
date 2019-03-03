@@ -12,14 +12,15 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-from object_database.messages import ClientToServer, getHeartbeatInterval
+from object_database.schema import Schema, ObjectFieldId, IndexId, FieldDefinition
+from object_database.messages import ClientToServer, ServerToClient, SchemaDefinition, getHeartbeatInterval
 from object_database.core_schema import core_schema
 from object_database.view import View, Transaction, _cur_view, SerializedDatabaseValue
 from object_database.identity import IdentityProducer
 import object_database.keymapping as keymapping
 from typed_python.SerializationContext import SerializationContext
 from typed_python.Codebase import Codebase as TypedPythonCodebase
-from typed_python import Alternative
+from typed_python import Alternative, Dict, OneOf
 
 import queue
 import threading
@@ -36,10 +37,10 @@ class Everything:
 
 TransactionResult = Alternative(
     "TransactionResult",
-    Success={},
-    RevisionConflict={'key': str},
-    Disconnected={}
-)
+    Success = {},
+    RevisionConflict = {'key': OneOf(str, ObjectFieldId, IndexId)},
+    Disconnected = {}
+    )
 
 
 class VersionedBase:
@@ -354,72 +355,6 @@ class ManyVersionedObjects:
                 del self._version_number_objects[toCollapse]
 
 
-class TransactionListener:
-    def __init__(self, db, handler):
-        self._thread = threading.Thread(target=self._doWork)
-        self._thread.daemon = True
-        self._shouldStop = False
-        self._db = db
-        self._db.registerOnTransactionHandler(self._onTransaction)
-        self._queue = queue.Queue()
-        self.serializationContext = TypedPythonCodebase.coreSerializationContext()
-        self.handler = handler
-
-    def setSerializationContext(self, context):
-        self.serializationContext = context
-
-    def start(self):
-        self._thread.start()
-
-    def stop(self):
-        self._shouldStop = True
-        self._thread.join()
-
-    def __enter__(self):
-        self.start()
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.stop()
-
-    def flush(self):
-        while self._queue.qsize():
-            time.sleep(0.001)
-
-    def _doWork(self):
-        logger = logging.getLogger(__name__)
-        while not self._shouldStop:
-            try:
-                todo = self._queue.get(timeout=0.1)
-            except queue.Empty:
-                todo = None
-
-            if todo:
-                try:
-                    self.handler(todo)
-                except Exception:
-                    logger.error("Callback threw exception:\n%s", traceback.format_exc())
-
-    def _onTransaction(self, key_value, priors, set_adds, set_removes, tid):
-        changed = {}
-
-        for k in key_value:
-            o, fieldname = self._db._data_key_to_object(k)
-
-            if o:
-                if o not in changed:
-                    changed[o] = []
-
-                if fieldname != " exists":
-                    changed[o].append((
-                        fieldname,
-                        View.unwrapSerializedDatabaseValue(self.serializationContext, key_value[k], o.__types__[fieldname]),
-                        View.unwrapSerializedDatabaseValue(self.serializationContext, priors[k], o.__types__[fieldname])
-                    ))
-
-        self._queue.put(changed)
-
-
 class DatabaseConnection:
     def __init__(self, channel):
         self._channel = channel
@@ -440,6 +375,12 @@ class DatabaseConnection:
 
         self.initialized = threading.Event()
         self.disconnected = threading.Event()
+
+        # for each schema name we've sent, an event that's triggered
+        # when the server has acknowledged the schema and given us a definition
+        self._schema_response_events = {}
+        self._fields_to_field_ids = Dict(FieldDefinition, int)()
+        self._field_id_to_field_def = Dict(int, FieldDefinition)()
 
         self.connectionObject = None
 
@@ -470,16 +411,18 @@ class DatabaseConnection:
 
         self._largeSubscriptionHeartbeatDelay = 0
 
-        self.serializationContext = TypedPythonCodebase.coreSerializationContext()
+        self.serializationContext = TypedPythonCodebase.coreSerializationContext().withoutCompression()
 
         self._logger = logging.getLogger(__name__)
+
+
 
     def registerOnTransactionHandler(self, handler):
         self._onTransactionHandlers.append(handler)
 
     def setSerializationContext(self, context):
         assert isinstance(context, SerializationContext), context
-        self.serializationContext = context
+        self.serializationContext = context.withoutCompression()
         return self
 
     def serializeFromModule(self, module):
@@ -508,19 +451,26 @@ class DatabaseConnection:
         schema.freeze()
 
         with self._lock:
-            if schema.name in self._schemas:
-                return
+            if schema.name not in self._schemas:
+                self._schemas[schema.name] = schema
 
-            self._schemas[schema.name] = schema
+                schemaDesc = schema.toDefinition()
 
-            schemaDesc = schema.toDefinition()
-
-            self._channel.write(
-                ClientToServer.DefineSchema(
-                    name=schema.name,
-                    definition=schemaDesc
+                self._channel.write(
+                    ClientToServer.DefineSchema(
+                        name=schema.name,
+                        definition=schemaDesc
+                    )
                 )
-            )
+
+                self._schema_response_events[schema.name] = threading.Event()
+
+            e = self._schema_response_events[schema.name]
+
+        e.wait()
+
+        if self.disconnected.is_set():
+            raise DisconnectedException()
 
     def flush(self):
         """Make sure we know all transactions that have happened up to this point."""
@@ -529,7 +479,7 @@ class DatabaseConnection:
                 raise DisconnectedException()
 
             self._flushIx += 1
-            ix = str(self._flushIx)
+            ix = self._flushIx
             e = self._flushEvents[ix] = threading.Event()
             self._channel.write(ClientToServer.Flush(guid=ix))
 
@@ -545,9 +495,9 @@ class DatabaseConnection:
         for t in objects:
             self.addSchema(type(t).__schema__)
         self.subscribeMultiple([
-            (type(t).__schema__.name, type(t).__qualname__, ("_identity", t._identity), False)
-            for t in objects
-        ])
+            (type(t).__schema__.name, type(t).__qualname__, ("_identity", keymapping.index_value_to_hash(t._identity)), False)
+                for t in objects
+            ])
 
     def _lazinessForType(self, typeObj, desiredLaziness):
         if desiredLaziness is not None:
@@ -724,20 +674,24 @@ class DatabaseConnection:
         return not self._suppressKey(object._identity)
 
     def _suppressKey(self, k):
-        schema, typename, ident, fieldname = keymapping.split_data_key(k)
+        fieldId = k.fieldId
+        identity = k.objId
 
-        subscriptionSet = self._schema_and_typename_to_subscription_set.get((schema, typename))
+        fieldDef = self._field_id_to_field_def[fieldId]
+
+        subscriptionSet = self._schema_and_typename_to_subscription_set.get((fieldDef.schema,fieldDef.typename))
 
         if subscriptionSet is Everything:
             return False
-        if isinstance(subscriptionSet, set) and ident in subscriptionSet:
+
+        if isinstance(subscriptionSet, set) and identity in subscriptionSet:
             return False
         return True
 
     def _suppressIdentities(self, index_key, identities):
-        schema, typename, fieldname, valhash = keymapping.split_index_key_full(index_key)
+        fieldDef = self._field_id_to_field_def[index_key.fieldId]
 
-        subscriptionSet = self._schema_and_typename_to_subscription_set.get((schema, typename))
+        subscriptionSet = self._schema_and_typename_to_subscription_set.get((fieldDef.schema,fieldDef.typename))
 
         if subscriptionSet is Everything:
             return identities
@@ -765,6 +719,9 @@ class DatabaseConnection:
                     e.set()
 
                 for e in self._pendingSubscriptions.values():
+                    e.set()
+
+                for e in self._schema_response_events.values():
                     e.set()
 
                 for q in self._transaction_callbacks.values():
@@ -816,10 +773,7 @@ class DatabaseConnection:
                     if not self._suppressKey(k):
                         key_value[k] = val_serialized
 
-                        priors[k] = self._versioned_data.setVersionedValue(
-                            k, msg.transaction_id,
-                            bytes.fromhex(val_serialized) if val_serialized is not None else None
-                        )
+                        priors[k] = self._versioned_data.setVersionedValue(k, msg.transaction_id, val_serialized)
 
                 for k, a in set_adds.items():
                     a = self._suppressIdentities(k, set(a))
@@ -842,7 +796,15 @@ class DatabaseConnection:
                         "_onTransaction handler %s threw an exception:\n%s",
                         handler,
                         traceback.format_exc()
-                    )
+                        )
+
+        elif msg.matches.SchemaMapping:
+            with self._lock:
+                for fieldDef, fieldId in msg.mapping.items():
+                    self._field_id_to_field_def[fieldId] = fieldDef
+                    self._fields_to_field_ids[fieldDef] = fieldId
+
+                self._schema_response_events[msg.schema].set()
 
         elif msg.matches.SubscriptionIncrease:
             with self._lock:
@@ -869,12 +831,12 @@ class DatabaseConnection:
                     self._subscription_buildup[lookupTuple]['identities'].update(msg.identities)
         elif msg.matches.LazyTransactionPriors:
             with self._lock:
-                for k, v in msg.writes.items():
-                    self._versioned_data.setVersionedTailValueStringified(k, bytes.fromhex(v) if v is not None else None)
+                for k,v in msg.writes.items():
+                    self._versioned_data.setVersionedTailValueStringified(k,v)
         elif msg.matches.LazyLoadResponse:
             with self._lock:
-                for k, v in msg.values.items():
-                    self._versioned_data.setVersionedTailValueStringified(k, bytes.fromhex(v) if v is not None else None)
+                for k,v in msg.values.items():
+                    self._versioned_data.setVersionedTailValueStringified(k,v)
 
                 self._lazy_objects.pop(msg.identity, None)
 
@@ -959,7 +921,7 @@ class DatabaseConnection:
                         self._lazy_objects[i] = schema_and_typename
 
                 for key, val in values.items():
-                    self._versioned_data.setVersionedValue(key, msg.tid, None if val is None else bytes.fromhex(val))
+                    self._versioned_data.setVersionedValue(key, msg.tid, val)
 
                     # this could take a long time, so we need to keep heartbeating
                     if time.time() - t0 > heartbeatInterval:
@@ -1005,9 +967,10 @@ class DatabaseConnection:
             val = indexValues[iv]
 
             if val is not None:
-                schema_name, typename, identity, field_name = keymapping.split_data_reverse_index_key(iv)
+                fieldId = iv.fieldId
+                identity = iv.objId
 
-                index_key = keymapping.index_key_from_names_encoded(schema_name, typename, field_name, val)
+                index_key = IndexId(fieldId=fieldId,indexValue=val)
 
                 setAdds.setdefault(index_key, set()).add(identity)
 
@@ -1036,7 +999,7 @@ class DatabaseConnection:
             if self.disconnected.is_set():
                 raise DisconnectedException()
 
-            identity = keymapping.split_data_key(key)[2]
+            identity = key.objId
             if identity not in self._lazy_objects:
                 return None
 
@@ -1056,9 +1019,12 @@ class DatabaseConnection:
     def requestLazyObjects(self, objects):
         with self._lock:
             for o in objects:
-                k = keymapping.data_key(type(o), o._identity, " exists")
+                fieldId = self._fields_to_field_ids[
+                    FieldDefinition(schema=o.__schema__.name, typename=type(o).__qualname__, fieldname=" exists")
+                    ]
+                objFieldId = ObjectFieldId(fieldId=fieldId,objId=o._identity)
 
-                if o._identity in self._lazy_objects and not self._versioned_data.hasDataForKey(k):
+                if o._identity in self._lazy_objects and not self._versioned_data.hasDataForKey(objFieldId):
                     self._loadLazyObject(o._identity)
 
     def _loadLazyObject(self, identity):
@@ -1096,8 +1062,8 @@ class DatabaseConnection:
 
         out_writes = {}
 
-        for k, v in key_value.items():
-            out_writes[k] = v.serializedByteRep.hex() if v.serializedByteRep is not None else None
+        for k,v in key_value.items():
+            out_writes[k] = v.serializedByteRep
             if len(out_writes) > 10000:
                 self._channel.write(
                     ClientToServer.TransactionData(

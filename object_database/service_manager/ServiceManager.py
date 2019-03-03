@@ -253,9 +253,9 @@ class ServiceManager(object):
             if needRedeploy:
                 self._logger.info(
                     "The following services need to be stopped because their codebases are out of date: %s",
-                    "\n".join(["  " + i.service.name + "." + i._identity + ". "
-                              + str(i.service.codebase) + " != " + str(i.codebase) for i in needRedeploy])
-                )
+                    "\n".join(["  " + i.service.name + "." + str(i._identity) + ". "
+                            + str(i.service.codebase) + " != " + str(i.codebase) for i in needRedeploy])
+                    )
 
         if needRedeploy:
             self.stopServices(needRedeploy)

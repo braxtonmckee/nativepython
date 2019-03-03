@@ -14,12 +14,14 @@
 
 from object_database.messages import ClientToServer, ServerToClient
 from object_database.identity import IdentityProducer
-from object_database.messages import SchemaDefinition
+from object_database.schema import Schema, FieldDefinition, ObjectFieldId, ObjectId, FieldId, IndexId
 from object_database.core_schema import core_schema
-import object_database.keymapping as keymapping
+from object_database.messages import SchemaDefinition
 from object_database.util import Timer
-from typed_python import serialize, deserialize
+from object_database.keymapping import index_value_to_hash
+from typed_python import serialize, deserialize, Class, Member, Dict, makeNamedTuple
 
+from typed_python.Codebase import Codebase as TypedPythonCodebase
 import queue
 import time
 import logging
@@ -28,6 +30,27 @@ import traceback
 
 DEFAULT_GC_INTERVAL = 900.0
 
+class TypeMap(Class):
+    fieldDefToId = Member(Dict(FieldDefinition, int))
+    fieldIdToDef = Member(Dict(int, FieldDefinition))
+
+    def __len__(self):
+        return len(self.fieldDefToId)
+
+    def lookupOrAdd(self, schema, typename, fieldname):
+        key = FieldDefinition(schema=schema, typename=typename, fieldname=fieldname)
+
+        if key not in self.fieldDefToId:
+            fieldId = len(self.fieldDefToId)
+            self.fieldDefToId[key] = fieldId
+            self.fieldIdToDef[fieldId] = key
+
+        return self.fieldDefToId[key]
+
+    def fieldIdFor(self, schema, typename, fieldname):
+        key = FieldDefinition(schema=schema, typename=typename, fieldname=fieldname)
+
+        return self.fieldDefToId.get(key)
 
 class ConnectedChannel:
     def __init__(self, initial_tid, channel, connectionObject, identityRoot):
@@ -37,9 +60,9 @@ class ConnectedChannel:
         self.connectionObject = connectionObject
         self.missedHeartbeats = 0
         self.definedSchemas = {}
-        self.subscribedTypes = {}  # schema, type to the lazy transaction id (or -1 if not lazy)
-        self.subscribedIds = set()  # identities
-        self.subscribedIndexKeys = {}  # full index keys to lazy transaction id
+        self.subscribedFields = {} #schema, type to the lazy transaction id (or -1 if not lazy)
+        self.subscribedIds = set() #identities
+        self.subscribedIndexKeys = {} #full index keys to lazy transaction id
         self.identityRoot = identityRoot
         self.pendingTransactions = {}
         self._needsAuthentication = True
@@ -97,6 +120,7 @@ class Server:
     def __init__(self, kvstore, auth_token):
         self._kvstore = kvstore
         self._auth_token = auth_token
+        self.serializationContext = TypedPythonCodebase.coreSerializationContext().withoutCompression()
 
         self._lock = threading.RLock()
 
@@ -104,7 +128,7 @@ class Server:
 
         self._gc_interval = DEFAULT_GC_INTERVAL
 
-        self._removeOldDeadConnections()
+        self._typeMap = None
 
         # InMemoryChannel or ServerToClientProtocol -> ConnectedChannel
         self._clientChannels = {}
@@ -116,11 +140,11 @@ class Server:
         self._version_numbers = {}
         self._version_numbers_timestamps = {}
 
-        # (schema,type) to set(subscribed channel)
-        self._type_to_channel = {}
+        #_field_id to set(subscribed channel)
+        self._field_id_to_channel = {}
 
-        # index-stringname to set(subscribed channel)
-        self._index_to_channel = {}
+        #index-stringname to set(subscribed channel)
+        self._index_to_channel = Dict(IndexId, object)()
 
         # for each individually subscribed ID, a set of channels
         self._id_to_channel = {}
@@ -159,6 +183,8 @@ class Server:
 
         self._logger = logging.getLogger(__name__)
 
+        self._removeOldDeadConnections()
+
     def start(self):
         self._subscriptionResponseThread = threading.Thread(target=self.serviceSubscriptions)
         self._subscriptionResponseThread.daemon = True
@@ -171,15 +197,15 @@ class Server:
 
     def allocateNewIdentityRoot(self):
         with self._lock:
-            curIdentityRoot = self._kvstore.get(" identityRoot")
+            curIdentityRoot = self._kvstore.get("identityRoot")
             if curIdentityRoot is None:
                 curIdentityRoot = 0
             else:
-                curIdentityRoot = deserialize(int, bytes.fromhex(curIdentityRoot))
+                curIdentityRoot = deserialize(int, curIdentityRoot)
 
             result = curIdentityRoot
 
-            self._kvstore.set(" identityRoot", serialize(int, curIdentityRoot+1).hex())
+            self._kvstore.set("identityRoot", serialize(int, curIdentityRoot+1))
 
             return result
 
@@ -196,15 +222,17 @@ class Server:
                 self._logger.error("Unexpected error in serviceSubscription thread:\n%s", traceback.format_exc())
 
     def _removeOldDeadConnections(self):
-        connection_index = keymapping.index_key(core_schema.Connection, " exists", True)
-        oldIds = self._kvstore.getSetMembers(keymapping.index_key(core_schema.Connection, " exists", True))
+        fieldId = self._currentTypeMap().fieldIdFor("core", "Connection", " exists")
+        exists_index = IndexId(fieldId=fieldId, indexValue=index_value_to_hash(True))
+
+        oldIds = self._kvstore.getSetMembers(exists_index)
 
         if oldIds:
             self._kvstore.setSeveral(
-                {keymapping.data_key(core_schema.Connection, identity, " exists"): None for identity in oldIds},
+                {ObjectFieldId(objId=identity, fieldId=fieldId):None for identity in oldIds},
                 {},
-                {connection_index: set(oldIds)}
-            )
+                {exists_index: set(oldIds)}
+                )
 
     def checkForDeadConnections(self):
         with self._lock:
@@ -223,6 +251,7 @@ class Server:
                     )
 
                     c.close()
+
                     self.dropConnection(c)
 
             self._logger.debug("Connection heartbeat distribution is %s", heartbeatCount)
@@ -230,13 +259,13 @@ class Server:
     def dropConnection(self, channel):
         with self._lock:
             if channel not in self._clientChannels:
-                self._logger.warn('Tried to drop a nonexistant channel')
+                self._logger.warn('Tried to drop a nonexistant channel %s', channel)
                 return
 
             connectedChannel = self._clientChannels[channel]
 
-            for schema_name, typename in connectedChannel.subscribedTypes:
-                self._type_to_channel[schema_name, typename].discard(connectedChannel)
+            for fieldId in connectedChannel.subscribedFields:
+                self._field_id_to_channel[fieldId].discard(connectedChannel)
 
             for index_key in connectedChannel.subscribedIndexKeys:
                 self._index_to_channel[index_key].discard(connectedChannel)
@@ -251,21 +280,21 @@ class Server:
 
             co = connectedChannel.connectionObject
 
-            self._logger.info("Server dropping connection for connectionObject._identity = %s", co._identity)
-
             del self._clientChannels[channel]
 
             self._dropConnectionEntry(co)
 
     def _createConnectionEntry(self):
         identity = self.identityProducer.createIdentity()
-        exists_key = keymapping.data_key(core_schema.Connection, identity, " exists")
-        exists_index = keymapping.index_key(core_schema.Connection, " exists", True)
+        fieldId = self._currentTypeMap().fieldIdFor("core", "Connection", " exists")
+
+        exists_key = ObjectFieldId(objId=identity, fieldId=fieldId)
+        exists_index = IndexId(fieldId=fieldId, indexValue=index_value_to_hash(True))
         identityRoot = self.allocateNewIdentityRoot()
 
         self._handleNewTransaction(
             None,
-            {exists_key: serialize(bool, True).hex()},
+            {exists_key: serialize(bool, True)},
             {exists_index: set([identity])},
             {},
             [],
@@ -278,8 +307,10 @@ class Server:
     def _dropConnectionEntry(self, entry):
         identity = entry._identity
 
-        exists_key = keymapping.data_key(core_schema.Connection, identity, " exists")
-        exists_index = keymapping.index_key(core_schema.Connection, " exists", True)
+        fieldId = self._currentTypeMap().fieldIdFor("core", "Connection", " exists")
+
+        exists_key = ObjectFieldId(objId=identity, fieldId=fieldId)
+        exists_index = IndexId(fieldId=fieldId, indexValue=index_value_to_hash(True))
 
         self._handleNewTransaction(
             None,
@@ -387,20 +418,17 @@ class Server:
         typedef = definition[typename]
 
         if msg.fieldname_and_value is None:
-            field, val = " exists", keymapping.index_value_to_hash(True)
+            field, val = " exists", index_value_to_hash(True)
         else:
             field, val = msg.fieldname_and_value
 
         if field == '_identity':
-            identities = set([val])
+            assert val.startswith(b"int_") #this is the 'hash representation' of an identity.
+            identities = set([int(val[4:])])
         else:
-            identities = set(
-                self._kvstore.getSetMembers(
-                    keymapping.index_key_from_names_encoded(
-                        schema_name, typename, field, val
-                    )
-                )
-            )
+            fieldId = self._currentTypeMap().lookupOrAdd(schema_name, typename, field)
+
+            identities = set(self._kvstore.getSetMembers(IndexId(fieldId=fieldId, indexValue=val)))
 
         return typedef, identities
 
@@ -546,8 +574,9 @@ class Server:
         index_vals = {}
 
         for fieldname in typedef.indices:
-            keys = [keymapping.data_reverse_index_key(schema_name, typename, identity, fieldname)
-                    for identity in identities]
+            fieldId = self._currentTypeMap().lookupOrAdd(schema_name, typename, fieldname)
+
+            keys = [ObjectFieldId(fieldId=fieldId, objId=identity, isIndexValue=True) for identity in identities]
 
             vals = self._kvstore.getSeveral(keys)
 
@@ -565,22 +594,69 @@ class Server:
                 connectedChannel.subscribedIds.add(ident)
 
             if fieldname_and_value[0] != '_identity':
-                index_key = keymapping.index_key_from_names_encoded(schema, typename, fieldname_and_value[0], fieldname_and_value[1])
+                fieldId = self._currentTypeMap().fieldIdFor(schema, typename, fieldname_and_value[0])
+                index_key = IndexId(fieldId=fieldId, indexValue=fieldname_and_value[1])
 
-                self._index_to_channel.setdefault(index_key, set()).add(connectedChannel)
+                if index_key not in self._index_to_channel:
+                    self._index_to_channel[index_key] = set()
+
+                self._index_to_channel[index_key].add(connectedChannel)
 
                 connectedChannel.subscribedIndexKeys[index_key] = -1 if not isLazy else self._cur_transaction_num
             else:
                 # an object's identity cannot change, so we don't need to track our subscription to it
                 assert not isLazy
         else:
-            # this is a type-subscription
-            if (schema, typename) not in self._type_to_channel:
-                self._type_to_channel[schema, typename] = set()
+            #this is a type-subscription
+            for fieldname in connectedChannel.definedSchemas[schema][typename].fields:
+                fieldId = self._currentTypeMap().fieldIdFor(schema, typename, fieldname)
+                if fieldId not in self._field_id_to_channel:
+                    self._field_id_to_channel[fieldId] = set()
 
-            self._type_to_channel[schema, typename].add(connectedChannel)
+                self._field_id_to_channel[fieldId].add(connectedChannel)
 
-            connectedChannel.subscribedTypes[(schema, typename)] = -1 if not isLazy else self._cur_transaction_num
+                connectedChannel.subscribedFields[fieldId] = -1 if not isLazy else self._cur_transaction_num
+
+    def _currentTypeMap(self):
+        if self._typeMap is None:
+            serializedTypeMap = self._kvstore.get("types")
+            if serializedTypeMap is None:
+                self._typeMap = TypeMap()
+                self._typeMap.lookupOrAdd(schema="core", typename="Connection", fieldname=" exists")
+            else:
+                self._typeMap = self.serializationContext.deserialize(currentTypes, TypeMap)
+
+        return self._typeMap
+
+
+    def _defineSchema(self, connectedChannel, name: str, definition: SchemaDefinition):
+        """Allow a channel to describe a schema.
+
+        We check each of the types defined in the schema and give it a unique id for that type.
+        We then send a mapping message back to the sender defining those unique ids.
+        """
+        connectedChannel.definedSchemas[name] = definition
+
+        currentTypes = self._currentTypeMap()
+        origSize = len(currentTypes)
+
+        result = {}
+
+        for typename, typedef in definition.items():
+            for fieldname in typedef.fields:
+                fieldId = currentTypes.lookupOrAdd(name,typename,fieldname)
+                result[makeNamedTuple(schema=name, typename=typename, fieldname=fieldname)] = fieldId
+            for indexname in typedef.indices:
+                fieldId = currentTypes.lookupOrAdd(name,typename,indexname)
+                result[makeNamedTuple(schema=name, typename=typename, fieldname=indexname)] = fieldId
+
+        connectedChannel.channel.write(
+            ServerToClient.SchemaMapping(schema=name, mapping=result)
+            )
+
+        if len(currentTypes) != origSize:
+            self._kvstore.set("types", self.serializationContext.serialize(currentTypes, TypeMap))
+
 
     def _sendPartialSubscription(self,
                                  connectedChannel,
@@ -603,28 +679,31 @@ class Server:
                 for key in transactionMessage.writes:
                     transactionMessage.writes[key]
 
-                    # if we write to a key we've already sent, we'll need to resend it
-                    identity = keymapping.split_data_key(key)[2]
+                    #if we write to a key we've already sent, we'll need to resend it
+                    identity = key.objId
+
                     if identity in identities:
                         identities_left_to_send.add(identity)
 
                 for add_index_key in transactionMessage.set_adds:
                     add_index_identities = transactionMessage.set_adds[add_index_key]
 
-                    add_schema, add_typename, add_fieldname, add_hashVal = keymapping.split_index_key_full(add_index_key)
+                    fieldDef = self._currentTypeMap().fieldIdToDef[add_index_key.fieldId]
 
-                    if add_schema == schema_name and add_typename == typename and (
-                            fieldname_and_value is None and add_fieldname == " exists" or
-                            fieldname_and_value is not None and tuple(fieldname_and_value) == (add_fieldname, add_hashVal)
-                    ):
+                    if schema_name == fieldDef.schema and typename == fieldDef.typename and (
+                            fieldname_and_value is None and fieldDef.fieldname == " exists" or
+                            fieldname_and_value is not None and tuple(fieldname_and_value) ==
+                                (fieldDef.fieldname, add_index_key.indexValue)
+                            ):
                         identities_left_to_send.update(add_index_identities)
 
         while identities_left_to_send and (BATCH_SIZE is None or len(to_send) < BATCH_SIZE):
             to_send.append(identities_left_to_send.pop())
 
         for fieldname in typedef.fields:
-            keys = [keymapping.data_key_from_names(schema_name, typename, identity, fieldname)
-                    for identity in to_send]
+            fieldId = self._currentTypeMap().fieldIdFor(schema_name, typename, fieldname)
+
+            keys = [ObjectFieldId(fieldId=fieldId, objId=identity) for identity in to_send]
 
             vals = self._kvstore.getSeveral(keys)
 
@@ -651,7 +730,8 @@ class Server:
         if msg.matches.Authenticate:
             if msg.token == self._auth_token:
                 connectedChannel.authenticate()
-            # else, do we need to do something?
+            else:
+                self._logger.error("Invalid auth token received")
             return
 
         # Abort if connection is not authenticated
@@ -676,8 +756,8 @@ class Server:
             with self._lock:
                 connectedChannel.channel.write(ServerToClient.FlushResponse(guid=msg.guid))
         elif msg.matches.DefineSchema:
-            assert isinstance(msg.definition, SchemaDefinition)
-            connectedChannel.definedSchemas[msg.name] = msg.definition
+            with self._lock:
+                self._defineSchema(connectedChannel, msg.name, msg.definition)
         elif msg.matches.Subscribe:
             with self._lock:
                 self._handleSubscriptionInForeground(connectedChannel, msg)
@@ -708,29 +788,28 @@ class Server:
         res = {}
 
         for indexKey, identities in removes.items():
-            schemaname, typename, fieldname, valuehash = keymapping.split_index_key_full(indexKey)
-
             for ident in identities:
-                res[keymapping.data_reverse_index_key(schemaname, typename, ident, fieldname)] = None
+                res[ObjectFieldId(fieldId=indexKey.fieldId, objId=ident, isIndexValue=True)] = None
 
         for indexKey, identities in adds.items():
-            schemaname, typename, fieldname, valuehash = keymapping.split_index_key_full(indexKey)
+            fieldId = indexKey.fieldId
+            valueHash = indexKey.indexValue
 
             for ident in identities:
-                res[keymapping.data_reverse_index_key(schemaname, typename, ident, fieldname)] = valuehash
+                res[ObjectFieldId(fieldId=fieldId,objId=ident, isIndexValue=True)] = valueHash
 
         return res
 
     def _broadcastSubscriptionIncrease(self, channel, indexKey, newIds):
         newIds = list(newIds)
 
-        schema_name, typename, fieldname, fieldval = keymapping.split_index_key_full(indexKey)
+        fieldDef = self._currentTypeMap().fieldIdToDef[indexKey.fieldId]
 
         channel.channel.write(
             ServerToClient.SubscriptionIncrease(
-                schema=schema_name,
-                typename=typename,
-                fieldname_and_value=(fieldname, fieldval),
+                schema=fieldDef.schema,
+                typename=fieldDef.typename,
+                fieldname_and_value=(fieldDef.fieldname, indexKey.indexValue),
                 identities=newIds
             )
         )
@@ -741,32 +820,35 @@ class Server:
         valsToGet = []
         for field_to_pull in typedef.fields:
             for ident in identities:
-                valsToGet.append(keymapping.data_key_from_names(schema_name, typename, ident, field_to_pull))
+                valsToGet.append(ObjectFieldId(objId=ident, fieldId=self._currentTypeMap().fieldIdFor(schema_name,typename,field_to_pull)))
 
         results = self._kvstore.getSeveral(valsToGet)
 
         return {valsToGet[i]: results[i] for i in range(len(valsToGet))}
 
     def _increaseBroadcastTransactionToInclude(self, channel, indexKey, newIds, key_value, set_adds, set_removes):
-        # we need to include all the data for the objects in 'newIds' to the transaction
-        # that we're broadcasting
-        schema_name, typename, fieldname, fieldval = keymapping.split_index_key_full(indexKey)
+        #we need to include all the data for the objects in 'newIds' to the transaction
+        #that we're broadcasting
+        fieldId = indexKey.fieldId
+        fieldDef = self._currentTypeMap().fieldIdToDef[fieldId]
 
-        typedef = channel.definedSchemas.get(schema_name)[typename]
+        typedef = channel.definedSchemas.get(fieldDef.schema)[fieldDef.typename]
 
-        key_value.update(self._loadValuesForObject(channel, schema_name, typename, newIds))
+        key_value.update(self._loadValuesForObject(channel, fieldDef.schema, fieldDef.typename, newIds))
 
         reverseKeys = []
         for index_name in typedef.indices:
             for ident in newIds:
-                reverseKeys.append(keymapping.data_reverse_index_key(schema_name, typename, ident, index_name))
+                reverseKeys.append(ObjectFieldId(fieldId=fieldId, objId=ident, isIndexValue=True))
 
         reverseVals = self._kvstore.getSeveral(reverseKeys)
         reverseKVMap = {reverseKeys[i]: reverseVals[i] for i in range(len(reverseKeys))}
 
         for index_name in typedef.indices:
+            fieldId = self._currentTypeMap().fieldIdFor(fieldDef.schema, fieldDef.typename, index_name)
+
             for ident in newIds:
-                fieldval = reverseKVMap.get(keymapping.data_reverse_index_key(schema_name, typename, ident, index_name))
+                fieldval = reverseKVMap.get(ObjectFieldId(fieldId=fieldId,objId=ident))
 
                 if fieldval is not None:
                     ik = keymapping.index_key_from_names_encoded(schema_name, typename, index_name, fieldval)
@@ -791,7 +873,7 @@ class Server:
             new_ts = {}
             for key, ts in self._version_numbers_timestamps.items():
                 if ts < threshold:
-                    if keymapping.isIndexKey(key):
+                    if isinstance(key, IndexId):
                         if not self._kvstore.getSetMembers(key):
                             del self._version_numbers[key]
                     else:
@@ -837,15 +919,17 @@ class Server:
 
         keysWritingTo = set()
         setsWritingTo = set()
-        schemaTypePairsWriting = set()
+        fieldIdsWriting = set()
 
         if sourceChannel:
             # check if we created any new objects to which we are not type-subscribed
             # and if so, ensure we are subscribed
             for add_index, added_identities in set_adds.items():
-                schema_name, typename, fieldname, fieldval = keymapping.split_index_key_full(add_index)
-                if fieldname == ' exists':
-                    if (schema_name, typename) not in sourceChannel.subscribedTypes:
+                fieldId = add_index.fieldId
+                fieldDef = self._currentTypeMap().fieldIdToDef.get(fieldId)
+
+                if fieldDef.fieldname == ' exists':
+                    if fieldId not in sourceChannel.subscribedFields:
                         sourceChannel.subscribedIds.update(added_identities)
                         for new_id in added_identities:
                             self._id_to_channel.setdefault(new_id, set()).add(sourceChannel)
@@ -854,18 +938,13 @@ class Server:
         for key in key_value:
             keysWritingTo.add(key)
 
-            schema_name, typename, ident = keymapping.split_data_key(key)[:3]
-            schemaTypePairsWriting.add((schema_name, typename))
-
-            identities_mentioned.add(ident)
+            fieldIdsWriting.add(key.fieldId)
+            identities_mentioned.add(key.objId)
 
         for subset in [set_adds, set_removes]:
             for k in subset:
                 if subset[k]:
-                    schema_name, typename = keymapping.split_index_key(k)[:2]
-
-                    schemaTypePairsWriting.add((schema_name, typename))
-
+                    fieldIdsWriting.add(k.fieldId)
                     setsWritingTo.add(k)
 
                     identities_mentioned.update(subset[k])
@@ -899,16 +978,17 @@ class Server:
         indexSetAdds = {}
         indexSetRemoves = {}
         for s in new_sets:
-            index_key, index_val = keymapping.split_index_key(s)
-            if index_key not in indexSetAdds:
-                indexSetAdds[index_key] = set()
-            indexSetAdds[index_key].add(index_val)
+            fieldId = s.fieldId
+
+            if fieldId not in indexSetAdds:
+                indexSetAdds[fieldId] = set()
+            indexSetAdds[fieldId].add(s.indexValue)
 
         for s in dropped_sets:
-            index_key, index_val = keymapping.split_index_key(s)
-            if index_key not in indexSetRemoves:
-                indexSetRemoves[index_key] = set()
-            indexSetRemoves[index_key].add(index_val)
+            fieldId = s.fieldId
+            if fieldId not in indexSetRemoves:
+                indexSetRemoves[fieldId] = set()
+            indexSetRemoves[fieldId].add(s.indexValue)
 
         self._kvstore.setSeveral({}, indexSetAdds, indexSetRemoves)
 
@@ -951,12 +1031,12 @@ class Server:
         transaction_message = None
         channelsTriggered = set()
 
-        for schema_type_pair in schemaTypePairsWriting:
-            for channel in self._type_to_channel.get(schema_type_pair, ()):
-                if channel.subscribedTypes[schema_type_pair] >= 0:
-                    # this is a lazy subscription. We're not using the transaction ID yet because
-                    # we don't store it on a per-object basis here. Instead, we're always sending
-                    # everything twice to lazy subscribers.
+        for fieldId in fieldIdsWriting:
+            for channel in self._field_id_to_channel.get(fieldId,()):
+                if channel.subscribedFields[fieldId] >= 0:
+                    #this is a lazy subscription. We're not using the transaction ID yet because
+                    #we don't store it on a per-object basis here. Instead, we're always sending
+                    #everything twice to lazy subscribers.
                     channelsTriggeredForPriors.add(channel)
                 channelsTriggered.add(channel)
 

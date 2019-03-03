@@ -1,4 +1,4 @@
-#   Copyright 2018 Braxton Mckee
+#   Copyright 2017-2019 Nativepython authors
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -17,6 +17,10 @@ import time
 import threading
 import logging
 
+from object_database.schema import ObjectFieldId, IndexId, FieldId
+from typed_python import serialize, deserialize, OneOf
+
+KeyType = OneOf(ObjectFieldId, IndexId, FieldId, "identityRoot", "types")
 
 class InMemoryPersistence(object):
     def __init__(self, db=0):
@@ -30,12 +34,12 @@ class InMemoryPersistence(object):
 
             val = self.values.get(key)
 
-            assert isinstance(val, str), key
+            assert isinstance(val, bytes), key
 
             return val
 
     def set(self, key, value):
-        assert isinstance(value, str) or value is None, (key, value)
+        assert isinstance(value, bytes) or value is None, (key, value)
 
         with self.lock:
             if value is None:
@@ -132,7 +136,7 @@ class RedisPersistence(object):
         if port is not None:
             kwds['port'] = port
 
-        self.redis = redis.StrictRedis(db=db, decode_responses=True, **kwds)
+        self.redis = redis.StrictRedis(db=db, **kwds)
         self.cache = {}
 
         self._logger = logging.getLogger(__name__)
@@ -150,7 +154,7 @@ class RedisPersistence(object):
             success = False
             while not success:
                 try:
-                    result = self.redis.get(key)
+                    result = self.redis.get(serialize(KeyType, key))
                     success = True
                 except redis.exceptions.BusyLoadingError:
                     self._logger.info("Redis is still loading. Waiting...")
@@ -159,7 +163,7 @@ class RedisPersistence(object):
             if result is None:
                 return result
 
-            assert isinstance(result, str)
+            assert isinstance(result, bytes)
 
             self.cache[key] = result
 
@@ -173,7 +177,7 @@ class RedisPersistence(object):
         """Get the values (or None) stored in several value-style keys."""
 
         with self.lock:
-            needed_keys = [k for k in keys if k not in self.cache]
+            needed_keys = [serialize(KeyType, k) for k in keys if k not in self.cache]
 
             if needed_keys:
                 success = False
@@ -187,7 +191,7 @@ class RedisPersistence(object):
 
                 for ix in range(len(needed_keys)):
                     if vals[ix] is not None:
-                        self.cache[needed_keys[ix]] = vals[ix]
+                        self.cache[deserialize(KeyType, needed_keys[ix])] = vals[ix]
 
             return [self.cache.get(k, None) for k in keys]
 
@@ -200,7 +204,7 @@ class RedisPersistence(object):
             success = False
             while not success:
                 try:
-                    vals = self.redis.smembers(key)
+                    vals = self.redis.smembers(serialize(KeyType, key))
                     success = True
                 except redis.exceptions.BusyLoadingError:
                     self._logger.info("Redis is still loading. Waiting...")
@@ -219,23 +223,23 @@ class RedisPersistence(object):
 
             for key, value in kvs.items():
                 if value is None:
-                    pipe.delete(key)
+                    pipe.delete(serialize(KeyType, key))
                 else:
-                    pipe.set(key, value)
+                    pipe.set(serialize(KeyType, key), value)
 
             for key, to_add in (setAdds or {}).items():
                 if key not in self.cache:
                     self.getSetMembers(key)
 
                 for to_add_val in to_add:
-                    pipe.sadd(key, to_add_val)
+                    pipe.sadd(serialize(KeyType, key), to_add_val)
 
             for key, to_remove in (setRemoves or {}).items():
                 if key not in self.cache:
                     self.getSetMembers(key)
 
                 for to_remove_val in to_remove:
-                    pipe.srem(key, to_remove_val)
+                    pipe.srem(serialize(KeyType, key), to_remove_val)
 
             pipe.execute()
 
@@ -272,21 +276,21 @@ class RedisPersistence(object):
     def set(self, key, value):
         with self.lock:
             if value is None:
-                self.redis.delete(key)
+                self.redis.delete(serialize(KeyType, key))
                 if key in self.cache:
                     del self.cache[key]
             else:
-                self.redis.set(key, value)
+                self.redis.set(serialize(KeyType, key), value)
                 self.cache[key] = value
 
     def exists(self, key):
         with self.lock:
             if key in self.cache:
                 return True
-            return self.redis.exists(key)
+            return self.redis.exists(serialize(KeyType, key))
 
     def delete(self, key):
         with self.lock:
             if key in self.cache:
                 del self.cache[key]
-            self.redis.delete(key)
+            self.redis.delete(serialize(KeyType, key))

@@ -16,6 +16,7 @@ from object_database.view import RevisionConflictException
 from object_database.view import current_transaction
 from object_database.util import Timer
 from object_database.web.html.html_gen import HTMLElement, HTMLTextContent
+from typed_python.Codebase import Codebase as TypedPythonCodebase
 
 MAX_TIMEOUT = 1.0
 MAX_TRIES = 10
@@ -663,7 +664,7 @@ class Cell:
         self.garbageCollected = False
         self.subscriptions = set()
         self._style = {}
-        self.serializationContext = None
+        self.serializationContext = TypedPythonCodebase.coreSerializationContext()
         self.context = {}
 
         self._logger = logging.getLogger(__name__)
@@ -2144,7 +2145,6 @@ class Clickable(Cell):
         if isinstance(val, str):
             self.triggerPostscript(quoteForJs("window.location.href = '__url__'".replace(
                 "__url__", quoteForJs(val, "'")), '"'))
-
 
 class Button(Clickable):
     def __init__(self, *args, small=False, active=True, style="primary", **kwargs):

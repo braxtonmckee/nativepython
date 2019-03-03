@@ -12,4 +12,5 @@ class IdentityProducer:
             count = self.count
             self.count += 1
 
-        return str(self.ix) + "_" + str(count)
+        ONE_HUNDRED_MILLION = 100000000
+        return self.ix * ONE_HUNDRED_MILLION + count

@@ -585,7 +585,7 @@ def main(args):
         return executeTests(args, filter_actions)
     except Exception:
         import traceback
-        logger.error("executeTests() threw an exception: \n%s", traceback.format_exc())
+        logging.getLogger(__name__).error("executeTests() threw an exception: \n%s", traceback.format_exc())
         return 1
 
 

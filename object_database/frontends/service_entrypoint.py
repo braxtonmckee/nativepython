@@ -31,7 +31,7 @@ def main(argv):
     parser.add_argument("servicename")
     parser.add_argument("host")
     parser.add_argument("port", type=int)
-    parser.add_argument("instanceid")
+    parser.add_argument("instanceid", type=int)
     parser.add_argument("sourceDir")
     parser.add_argument("storageRoot")
     parser.add_argument("serviceToken")
@@ -42,7 +42,7 @@ def main(argv):
     level = parsedArgs.log_level.upper()
     level = validateLogLevel(level, fallback='INFO')
 
-    configureLogging(preamble=parsedArgs.instanceid[:8], level=level)
+    configureLogging(preamble=str(parsedArgs.instanceid), level=level)
 
     logger = logging.getLogger(__name__)
 
@@ -60,8 +60,10 @@ def main(argv):
 
     try:
         manager = ServiceWorker(
-            dbConnectionFactory, parsedArgs.instanceid,
-            parsedArgs.storageRoot, parsedArgs.serviceToken
+            dbConnectionFactory,
+            int(parsedArgs.instanceid),
+            parsedArgs.storageRoot,
+            parsedArgs.serviceToken
         )
 
         manager.runAndWaitForShutdown()

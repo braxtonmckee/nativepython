@@ -54,8 +54,7 @@ _builtin_value_to_name = {id(v): k for k, v in _builtin_name_to_value.items()}
 
 class SerializationContext(object):
     """Represents a collection of types with well-specified names that we can use to serialize objects."""
-
-    def __init__(self, nameToObject=None):
+    def __init__(self, nameToObject=None, compressionEnabled=True, encodeLineInformationForCode=True):
         super().__init__()
 
         self.nameToObject = nameToObject or {}
@@ -77,8 +76,8 @@ class SerializationContext(object):
             if id(v) not in self.objToName or k < self.objToName[id(v)]:
                 self.objToName[id(v)] = k
 
-        self.compressionEnabled = True
-        self.encodeLineInformationForCode = True
+        self.compressionEnabled = compressionEnabled
+        self.encodeLineInformationForCode = encodeLineInformationForCode
 
     def compress(self, bytes):
         if self.compressionEnabled:
@@ -130,12 +129,20 @@ class SerializationContext(object):
         return SerializationContext(nameToObject)
 
     def withPrefix(self, prefix):
-        return SerializationContext({prefix + "." + k: v for k, v in self.nameToObject.items()})
+        return SerializationContext(
+            {prefix + "." + k: v for k, v  in self.nameToObject.items()},
+            self.compressionEnabled,
+            self.encodeLineInformationForCode
+            )
 
     def withoutLineInfoEncoded(self):
-        res = SerializationContext(self.nameToObject)
-        res.encodeLineInformationForCode = False
-        return res
+        return SerializationContext(self.nameToObject, self.compressionEnabled, False)
+
+    def withoutCompression(self):
+        return SerializationContext(self.nameToObject, False, self.encodeLineInformationForCode)
+
+    def withCompression(self):
+        return SerializationContext(self.nameToObject, True, self.encodeLineInformationForCode)
 
     def nameForObject(self, t):
         ''' Return a name(string) for an input object t, or None if not found. '''
@@ -162,11 +169,11 @@ class SerializationContext(object):
     def sha_hash(self, o):
         return sha_hash(self.serialize(o))
 
-    def serialize(self, instance):
-        return serialize(object, instance, self)
+    def serialize(self, instance, serializeType=object):
+        return serialize(serializeType, instance, self)
 
-    def deserialize(self, bytes):
-        return deserialize(object, bytes, self)
+    def deserialize(self, bytes, serializeType=object):
+        return deserialize(serializeType, bytes, self)
 
     def representationFor(self, inst):
         ''' Return the representation of a given instance or None.

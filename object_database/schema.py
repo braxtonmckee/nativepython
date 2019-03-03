@@ -17,8 +17,15 @@ from types import FunctionType
 from typed_python import ConstDict, NamedTuple, Tuple, TupleOf
 
 
+ObjectId = int
+FieldId = int
+ObjectFieldId = NamedTuple(objId=int, fieldId=int, isIndexValue=bool)
+IndexId = NamedTuple(fieldId=int, indexValue=bytes)
+
 TypeDefinition = NamedTuple(fields=TupleOf(str), indices=TupleOf(str))
 SchemaDefinition = ConstDict(str, TypeDefinition)
+
+FieldDefinition = NamedTuple(schema=str,typename=str,fieldname=str)
 
 
 def SubscribeLazilyByDefault(t):

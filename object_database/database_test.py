@@ -18,7 +18,7 @@ from typed_python.SerializationContext import SerializationContext
 from object_database.schema import Indexed, Index, Schema
 from object_database.core_schema import core_schema
 from object_database.view import RevisionConflictException, DisconnectedException, ObjectDoesntExistException
-from object_database.database_connection import TransactionListener, DatabaseConnection, SetWithEdits
+from object_database.database_connection import DatabaseConnection, SetWithEdits
 from object_database.tcp_server import TcpServer
 from object_database.inmem_server import InMemServer
 from object_database.persistence import InMemoryPersistence, RedisPersistence
@@ -533,23 +533,6 @@ class ObjectDatabaseTests:
 
         self.assertEqual(len(OK), 10)
 
-    def test_transaction_handlers(self):
-        db = self.createNewDb()
-        db.subscribeToSchema(schema)
-
-        didOne = threading.Event()
-
-        def handler(changed):
-            didOne.set()
-
-        with TransactionListener(db, handler):
-            with db.transaction():
-                Root()
-
-            didOne.wait()
-
-        assert didOne.isSet()
-
     def test_basic(self):
         db = self.createNewDb()
         db.subscribeToSchema(schema)
@@ -567,7 +550,7 @@ class ObjectDatabaseTests:
         with db2.view():
             self.assertEqual(root.obj.k.value, 23)
 
-    def test_throughput(self):
+    def test_throughput_basic(self):
         db = self.createNewDb()
         db.subscribeToSchema(schema)
 
@@ -750,7 +733,7 @@ class ObjectDatabaseTests:
         # seed the initial state
         with db.transaction():
             for i in range(20):
-                counter = Counter(_identity="C_%s" % i)
+                counter = Counter(_identity=i)
                 counter.k = int(random.random() * 100)
                 counters.append(counter)
 
@@ -1024,7 +1007,7 @@ class ObjectDatabaseTests:
             x = int
             y = int
 
-        Object.fromIdentity("hi")
+        Object.fromIdentity(0)
 
         with self.assertRaises(AttributeError):
             schema.SomeOtherObject
@@ -1422,8 +1405,8 @@ class ObjectDatabaseTests:
             self.assertEqual(c.x, 101)
 
     def test_multithreading_and_subscribing(self):
-        """Verify that if one thread is subscribing and the other is repeatedly looking
-        at indices, that everything works correctly."""
+        # Verify that if one thread is subscribing and the other is repeatedly looking
+        # at indices, that everything works correctly.
 
         db1 = self.createNewDb()
         db2 = self.createNewDb()
@@ -1588,20 +1571,22 @@ class ObjectDatabaseOverChannelTestsWithRedis(unittest.TestCase, ObjectDatabaseT
         if not os.path.isfile(redis_path):
             redis_path = "/usr/local/bin/redis-server"
 
-        self.redisProcess = subprocess.Popen(
-            [redis_path, '--port', '1115',
-             '--logfile', os.path.join(self.tempDirName, "log.txt"),
-             "--dbfilename", "db.rdb", "--dir", os.path.join(self.tempDirName)]
-        )
+        try:
+            self.redisProcess = subprocess.Popen(
+                [redis_path,'--port', '1115', '--logfile', os.path.join(self.tempDirName, "log.txt"),
+                    "--dbfilename", "db.rdb", "--dir", os.path.join(self.tempDirName)]
+                )
+            time.sleep(.5)
+            pollRes = self.redisProcess.poll()
+            assert pollRes is None, pollRes
 
-        time.sleep(.5)
-        assert self.redisProcess.poll() is None
-
-        redis.StrictRedis(db=0, decode_responses=True, port=1115).echo("hi")
-        self.mem_store = RedisPersistence(port=1115)
-        self.server = InMemServer(self.mem_store, self.auth_token)
-        self.server._gc_interval = .1
-        self.server.start()
+            self.mem_store = RedisPersistence(port=1115)
+            self.server = InMemServer(self.mem_store, self.auth_token)
+            self.server._gc_interval = .1
+            self.server.start()
+        except Exception:
+            self.redisProcess.terminate()
+            raise
 
     def createNewDb(self):
         return self.server.connect(self.auth_token)
@@ -1666,6 +1651,8 @@ class ObjectDatabaseOverChannelTests(unittest.TestCase, ObjectDatabaseTests):
             db1.subscribeToSchema(core_schema)
             db2.subscribeToSchema(core_schema)
 
+            db1.flush()
+
             with db1.view():
                 self.assertTrue(len(core_schema.Connection.lookupAll()), 2)
 
@@ -1689,8 +1676,8 @@ class ObjectDatabaseOverChannelTests(unittest.TestCase, ObjectDatabaseTests):
             messages.setHeartbeatInterval(old_interval)
 
     def test_multithreading_and_cleanup(self):
-        """Verify that if one thread is subscribing and the other is repeatedly looking
-        at indices, that everything works correctly."""
+        # Verify that if one thread is subscribing and the other is repeatedly looking
+        # at indices, that everything works correctly.
 
         try:
             # inject some behavior to slow down the checks so we can see if we're

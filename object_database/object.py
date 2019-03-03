@@ -19,7 +19,7 @@ from typed_python.hash import sha_hash
 from typed_python import NamedTuple
 
 
-_base = NamedTuple(_identity=str)
+_base = NamedTuple(_identity=int)
 
 
 class DatabaseObject(_base):
@@ -41,7 +41,7 @@ class DatabaseObject(_base):
 
     @classmethod
     def fromIdentity(cls, identity):
-        assert isinstance(identity, str), type(identity)
+        assert isinstance(identity, int), type(identity)
         cls.__schema__.freeze()
 
         return _base.__new__(cls, _identity=identity)
@@ -53,7 +53,7 @@ class DatabaseObject(_base):
         return _cur_view.view._new(cls, args, kwds)
 
     def __repr__(self):
-        return type(self).__qualname__ + "(" + self._identity[:8] + ")"
+        return type(self).__qualname__ + f"({self._identity})"
 
     @classmethod
     def lookupOne(cls, **kwargs):

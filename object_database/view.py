@@ -1,4 +1,4 @@
-#   Copyright 2018 Braxton Mckee
+#   Copyright 2019 Nativepython authors
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -14,7 +14,8 @@
 
 from typed_python import serialize, deserialize
 
-from object_database.keymapping import data_key, index_key
+from object_database.keymapping import index_value_to_hash
+
 import object_database
 import logging
 import threading
@@ -40,7 +41,6 @@ class ObjectDoesntExistException(Exception):
     def __init__(self, obj):
         super().__init__("%s(%s)" % (type(obj).__qualname__, obj._identity))
         self.obj = obj
-
 
 def revisionConflictRetry(f):
     MAX_TRIES = 100
@@ -117,11 +117,32 @@ class View(object):
         return self._db
 
     def setSerializationContext(self, serializationContext):
-        self.serializationContext = serializationContext
+        self.serializationContext = serializationContext.withoutCompression()
         return self
 
     def transaction_id(self):
         return self._transaction_num
+
+    def getFieldIdFor(self, cls, identity, fieldname, isIndex=False):
+        fieldId = self._db._fields_to_field_ids[
+            object_database.schema.FieldDefinition(
+                schema=cls.__schema__.name,
+                typename=cls.__qualname__,
+                fieldname=fieldname
+                )
+            ]
+        return object_database.schema.ObjectFieldId(objId=identity, fieldId=fieldId)
+
+    def getIndexId(self, cls, fieldname, indexValue):
+        key = object_database.schema.FieldDefinition(
+            schema=cls.__schema__.name,
+            typename=cls.__qualname__,
+            fieldname=fieldname
+            )
+
+        fieldId = self._db._fields_to_field_ids.get(key)
+
+        return object_database.schema.IndexId(fieldId=fieldId,indexValue=index_value_to_hash(indexValue))
 
     def _new(self, cls, args, kwds):
         if not self._writeable:
@@ -140,18 +161,18 @@ class View(object):
         o = cls.fromIdentity(identity)
 
         try:
-            self._writes[data_key(cls, identity, " exists")] = (bool, True)
+            self._writes[self.getFieldIdFor(cls, identity, " exists")] = (bool, True)
 
             if not hasattr(cls, '__types__') or cls.__types__ is None:
                 raise Exception("Please initialize the type object for %s" % str(cls.__qualname__))
 
             if hasattr(cls, '__odb_initializer__'):
-                self._add_to_index(index_key(cls, " exists", True), identity)
+                self._add_to_index(self.getIndexId(cls, " exists", True), identity)
 
                 cls.__odb_initializer__(o, *args, **kwds)
 
                 for tname, t in cls.__types__.items():
-                    k = data_key(cls, identity, tname)
+                    k = self.getFieldIdFor(cls, identity, tname)
                     if k not in self._writes:
                         setattr(o, tname, default_initialize(t))
             else:
@@ -163,11 +184,11 @@ class View(object):
         except Exception:
             # make sure we leave no trace of this object.
             for tname in cls.__types__:
-                k = data_key(cls, identity, tname)
+                k = self.getFieldIdFor(cls, identity, tname)
                 if k in self._writes:
                     del self._writes[k]
 
-            del self._writes[data_key(cls, identity, " exists")]
+            del self._writes[self.getFieldIdFor(cls, identity, " exists")]
 
             # propagate the exception
             raise
@@ -194,7 +215,7 @@ class View(object):
             except Exception:
                 raise TypeError(f"Can't coerce {val} to type {targetType} when initializing {kwd} of {cls.__qualname__}")
 
-            self._writes[data_key(cls, identity, kwd)] = (cls.__types__[kwd], coerced_val)
+            self._writes[self.getFieldIdFor(cls, identity, kwd)] = (cls.__types__[kwd], coerced_val)
 
         if cls in cls.__schema__._indices:
             for index_name, index_fun in cls.__schema__._indices[cls].items():
@@ -202,7 +223,7 @@ class View(object):
                     val = index_fun(o)
                     if val is not None:
                         indexType = cls.__schema__._indexTypes[cls][index_name]
-                        ik = index_key(cls, index_name, coerce_value(val, indexType))
+                        ik = self.getIndexId(cls, index_name, coerce_value(val, indexType))
 
                         self._add_to_index(ik, identity)
 
@@ -210,7 +231,7 @@ class View(object):
                     pass
 
     def _get(self, obj, identity, field_name, field_type):
-        key = data_key(type(obj), identity, field_name)
+        key = self.getFieldIdFor(type(obj), identity, field_name)
 
         self._reads.add(key)
 
@@ -247,8 +268,8 @@ class View(object):
         if dbValWithPyrep is None:
             return default_initialize(field_type)
 
-        if isinstance(dbValWithPyrep, str):
-            dbValWithPyrep = SerializedDatabaseValue(bytes.fromhex(dbValWithPyrep), {})
+        if isinstance(dbValWithPyrep, bytes):
+            dbValWithPyrep = SerializedDatabaseValue(dbValWithPyrep, {})
 
         if dbValWithPyrep.serializedByteRep is None:
             return default_initialize(field_type)
@@ -262,7 +283,7 @@ class View(object):
         if not self._db._isTypeSubscribed(type(obj)):
             raise Exception("No subscriptions exist for type %s" % obj)
 
-        key = data_key(type(obj), identity, " exists")
+        key = self.getFieldIdFor(type(obj), identity, " exists")
 
         self._reads.add(key)
 
@@ -286,10 +307,10 @@ class View(object):
         existing_index_vals = self._compute_index_vals(obj, obj.__schema__._indices.get(type(obj), {}).keys())
 
         for name in field_names:
-            key = data_key(type(obj), identity, name)
+            key = self.getFieldIdFor(type(obj), identity, name)
             self._writes[key] = None
 
-        self._writes[data_key(type(obj), identity, " exists")] = None
+        self._writes[self.getFieldIdFor(type(obj), identity, " exists")] = None
 
         self._update_indices(obj, identity, existing_index_vals, {})
 
@@ -303,7 +324,7 @@ class View(object):
         if not obj.exists():
             raise ObjectDoesntExistException(obj)
 
-        key = data_key(type(obj), identity, field_name)
+        key = self.getFieldIdFor(type(obj), identity, field_name)
 
         indicesChanged = obj.__schema__._indexed_fields[type(obj)].get(field_name, [])
 
@@ -345,16 +366,14 @@ class View(object):
 
                 if cur_index_val != new_index_val:
                     if cur_index_val is not None:
-                        old_index_name = index_key(type(obj), index_name, cur_index_val)
+                        old_index_name = self.getIndexId(type(obj), index_name, cur_index_val)
                         self._remove_from_index(old_index_name, identity)
 
                     if new_index_val is not None:
-                        new_index_name = index_key(type(obj), index_name, new_index_val)
+                        new_index_name = self.getIndexId(type(obj), index_name, new_index_val)
                         self._add_to_index(new_index_name, identity)
 
     def _add_to_index(self, index_key, identity):
-        assert isinstance(identity, str)
-
         if index_key not in self._set_adds:
             self._set_adds[index_key] = set()
             self._set_removes[index_key] = set()
@@ -365,8 +384,6 @@ class View(object):
             self._set_adds[index_key].add(identity)
 
     def _remove_from_index(self, index_key, identity):
-        assert isinstance(identity, str)
-
         if index_key not in self._set_adds:
             self._set_adds[index_key] = set()
             self._set_removes[index_key] = set()
@@ -394,7 +411,7 @@ class View(object):
         if indexType is not None:
             value = coerce_value(value, indexType)
 
-        keyname = index_key(db_type, tname, value)
+        keyname = self.getIndexId(db_type, tname, value)
 
         self._indexReads.add(keyname)
 
@@ -422,7 +439,7 @@ class View(object):
         if indexType is not None:
             value = coerce_value(value, indexType)
 
-        keyname = index_key(db_type, tname, value)
+        keyname = self.getIndexId(db_type, tname, value)
 
         added = self._set_adds.get(keyname, set())
         removed = self._set_removes.get(keyname, set())
@@ -457,10 +474,11 @@ class View(object):
         if self._writes:
             def encode(val):
                 if isinstance(val, tuple) and len(val) == 2 and isinstance(val[0], type):
+                    serializedBytes = serialize(val[0], val[1], self.serializationContext)
                     return SerializedDatabaseValue(
-                        serialize(val[0], val[1], self.serializationContext),
-                        {self.serializationContext: val[1]}
-                    )
+                        serializedBytes,
+                        {self.serializationContext:val[1]}
+                        )
 
                 elif val is None:
                     return SerializedDatabaseValue(val, {})

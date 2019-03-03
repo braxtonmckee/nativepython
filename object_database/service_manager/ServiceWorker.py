@@ -41,6 +41,7 @@ class ServiceWorker:
             os.makedirs(storageRoot)
 
         self.instance = service_schema.ServiceInstance.fromIdentity(instance_id)
+
         self.db.subscribeToObject(self.instance)
 
         with self.db.view():
@@ -71,6 +72,7 @@ class ServiceWorker:
 
         with self.db.transaction():
             assert self.instance.exists(), "Service Instance object %s doesn't exist" % self.instance._identity
+            assert self.instance.service.exists(), "Service object %s doesn't exist" % self.instance.service._identity
             self.serviceName = self.instance.service.name
             self.instance.connection = self.db.connectionObject
             self.instance.codebase = self.instance.service.codebase

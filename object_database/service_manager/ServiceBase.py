@@ -13,8 +13,7 @@
 #   limitations under the License.
 
 
-from object_database.web.cells import Card
-
+import object_database
 
 class ServiceRuntimeConfig:
     def __init__(self, serviceTemporaryStorageRoot, serviceToken):
@@ -50,7 +49,7 @@ class ServiceBase:
 
     @staticmethod
     def serviceDisplay(serviceObject, instance=None, objType=None, queryArgs=None):
-        return Card("No details provided for service '%s'" % serviceObject.name)
+        return object_database.web.cells.Card("No details provided for service '%s'" % serviceObject.name)
 
     @staticmethod
     def serviceHeaderToggles(serviceObject, instance=None):
