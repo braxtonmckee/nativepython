@@ -30,27 +30,40 @@ class NumpyBuildExtension(build_ext):
             pkg_resources.resource_filename('numpy', 'core/include'))
         build_ext.run(self)
 
+extra_compile_args = [
+    '-O2',
+    '-fstack-protector-strong',
+    '-Wformat',
+    '-Wdate-time',
+    '-Werror=format-security',
+    '-std=c++14',
+    '-Wno-sign-compare',
+    '-Wno-narrowing',
+    '-Wno-unused-'
+]
 
-ext_modules = [Extension(
-    'typed_python._types',
-    sources=[
-        'typed_python/all.cpp',
-    ],
-    define_macros=[
-        ("_FORTIFY_SOURCE", 2)
-    ],
-    extra_compile_args=[
-        '-O2',
-        '-fstack-protector-strong',
-        '-Wformat',
-        '-Wdate-time',
-        '-Werror=format-security',
-        '-std=c++14',
-        '-Wno-sign-compare',
-        '-Wno-narrowing',
-        '-Wno-unused-'
-    ]
-)]
+ext_modules = [
+    Extension(
+        'object_database._types',
+        sources=[
+            'object_database/all.cpp',
+        ],
+        define_macros=[
+            ("_FORTIFY_SOURCE", 2)
+        ],
+        extra_compile_args=extra_compile_args
+    ),
+    Extension(
+        'typed_python._types',
+        sources=[
+            'typed_python/all.cpp',
+        ],
+        define_macros=[
+            ("_FORTIFY_SOURCE", 2)
+        ],
+        extra_compile_args=extra_compile_args
+    )
+]
 
 INSTALL_REQUIRES = [line.strip() for line in open('requirements.txt')]
 

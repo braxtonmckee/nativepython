@@ -42,6 +42,7 @@ class ObjectDoesntExistException(Exception):
         super().__init__("%s(%s)" % (type(obj).__qualname__, obj._identity))
         self.obj = obj
 
+
 def revisionConflictRetry(f):
     MAX_TRIES = 100
 
@@ -129,8 +130,8 @@ class View(object):
                 schema=cls.__schema__.name,
                 typename=cls.__qualname__,
                 fieldname=fieldname
-                )
-            ]
+            )
+        ]
         return object_database.schema.ObjectFieldId(objId=identity, fieldId=fieldId)
 
     def getIndexId(self, cls, fieldname, indexValue):
@@ -138,7 +139,7 @@ class View(object):
             schema=cls.__schema__.name,
             typename=cls.__qualname__,
             fieldname=fieldname
-            )
+        )
 
         fieldId = self._db._fields_to_field_ids.get(key)
 
@@ -478,7 +479,7 @@ class View(object):
                     return SerializedDatabaseValue(
                         serializedBytes,
                         {self.serializationContext:val[1]}
-                        )
+                    )
 
                 elif val is None:
                     return SerializedDatabaseValue(val, {})

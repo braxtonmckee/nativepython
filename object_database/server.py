@@ -30,6 +30,7 @@ import traceback
 
 DEFAULT_GC_INTERVAL = 900.0
 
+
 class TypeMap(Class):
     fieldDefToId = Member(Dict(FieldDefinition, int))
     fieldIdToDef = Member(Dict(int, FieldDefinition))
@@ -52,6 +53,7 @@ class TypeMap(Class):
 
         return self.fieldDefToId.get(key)
 
+
 class ConnectedChannel:
     def __init__(self, initial_tid, channel, connectionObject, identityRoot):
         super(ConnectedChannel, self).__init__()
@@ -60,9 +62,9 @@ class ConnectedChannel:
         self.connectionObject = connectionObject
         self.missedHeartbeats = 0
         self.definedSchemas = {}
-        self.subscribedFields = {} #schema, type to the lazy transaction id (or -1 if not lazy)
-        self.subscribedIds = set() #identities
-        self.subscribedIndexKeys = {} #full index keys to lazy transaction id
+        self.subscribedFields = {}  # schema, type to the lazy transaction id (or -1 if not lazy)
+        self.subscribedIds = set()  # identities
+        self.subscribedIndexKeys = {}  # full index keys to lazy transaction id
         self.identityRoot = identityRoot
         self.pendingTransactions = {}
         self._needsAuthentication = True
@@ -232,7 +234,7 @@ class Server:
                 {ObjectFieldId(objId=identity, fieldId=fieldId):None for identity in oldIds},
                 {},
                 {exists_index: set(oldIds)}
-                )
+            )
 
     def checkForDeadConnections(self):
         with self._lock:
@@ -423,7 +425,7 @@ class Server:
             field, val = msg.fieldname_and_value
 
         if field == '_identity':
-            assert val.startswith(b"int_") #this is the 'hash representation' of an identity.
+            assert val.startswith(b"int_")  # this is the 'hash representation' of an identity.
             identities = set([int(val[4:])])
         else:
             fieldId = self._currentTypeMap().lookupOrAdd(schema_name, typename, field)
@@ -624,10 +626,9 @@ class Server:
                 self._typeMap = TypeMap()
                 self._typeMap.lookupOrAdd(schema="core", typename="Connection", fieldname=" exists")
             else:
-                self._typeMap = self.serializationContext.deserialize(currentTypes, TypeMap)
+                self._typeMap = self.serializationContext.deserialize(serializedTypeMap, TypeMap)
 
         return self._typeMap
-
 
     def _defineSchema(self, connectedChannel, name: str, definition: SchemaDefinition):
         """Allow a channel to describe a schema.
@@ -652,11 +653,10 @@ class Server:
 
         connectedChannel.channel.write(
             ServerToClient.SchemaMapping(schema=name, mapping=result)
-            )
+        )
 
         if len(currentTypes) != origSize:
             self._kvstore.set("types", self.serializationContext.serialize(currentTypes, TypeMap))
-
 
     def _sendPartialSubscription(self,
                                  connectedChannel,
@@ -693,8 +693,7 @@ class Server:
                     if schema_name == fieldDef.schema and typename == fieldDef.typename and (
                             fieldname_and_value is None and fieldDef.fieldname == " exists" or
                             fieldname_and_value is not None and tuple(fieldname_and_value) ==
-                                (fieldDef.fieldname, add_index_key.indexValue)
-                            ):
+                                (fieldDef.fieldname, add_index_key.indexValue)):
                         identities_left_to_send.update(add_index_identities)
 
         while identities_left_to_send and (BATCH_SIZE is None or len(to_send) < BATCH_SIZE):
@@ -827,8 +826,8 @@ class Server:
         return {valsToGet[i]: results[i] for i in range(len(valsToGet))}
 
     def _increaseBroadcastTransactionToInclude(self, channel, indexKey, newIds, key_value, set_adds, set_removes):
-        #we need to include all the data for the objects in 'newIds' to the transaction
-        #that we're broadcasting
+        # we need to include all the data for the objects in 'newIds' to the transaction
+        # that we're broadcasting
         fieldId = indexKey.fieldId
         fieldDef = self._currentTypeMap().fieldIdToDef[fieldId]
 
@@ -851,7 +850,7 @@ class Server:
                 fieldval = reverseKVMap.get(ObjectFieldId(fieldId=fieldId,objId=ident))
 
                 if fieldval is not None:
-                    ik = keymapping.index_key_from_names_encoded(schema_name, typename, index_name, fieldval)
+                    ik = IndexId(fieldId=fieldId, indexValue=fieldval)
                     set_adds.setdefault(ik, set()).add(ident)
 
     def _loadLazyObject(self, channel, msg):

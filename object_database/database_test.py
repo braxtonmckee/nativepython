@@ -1575,7 +1575,8 @@ class ObjectDatabaseOverChannelTestsWithRedis(unittest.TestCase, ObjectDatabaseT
             self.redisProcess = subprocess.Popen(
                 [redis_path,'--port', '1115', '--logfile', os.path.join(self.tempDirName, "log.txt"),
                     "--dbfilename", "db.rdb", "--dir", os.path.join(self.tempDirName)]
-                )
+            )
+
             time.sleep(.5)
             pollRes = self.redisProcess.poll()
             assert pollRes is None, pollRes

@@ -133,7 +133,7 @@ class SerializationContext(object):
             {prefix + "." + k: v for k, v  in self.nameToObject.items()},
             self.compressionEnabled,
             self.encodeLineInformationForCode
-            )
+        )
 
     def withoutLineInfoEncoded(self):
         return SerializationContext(self.nameToObject, self.compressionEnabled, False)

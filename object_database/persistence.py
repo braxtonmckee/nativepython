@@ -22,6 +22,7 @@ from typed_python import serialize, deserialize, OneOf
 
 KeyType = OneOf(ObjectFieldId, IndexId, FieldId, "identityRoot", "types")
 
+
 class InMemoryPersistence(object):
     def __init__(self, db=0):
         self.values = {}

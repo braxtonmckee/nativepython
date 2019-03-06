@@ -37,10 +37,10 @@ class Everything:
 
 TransactionResult = Alternative(
     "TransactionResult",
-    Success = {},
-    RevisionConflict = {'key': OneOf(str, ObjectFieldId, IndexId)},
-    Disconnected = {}
-    )
+    Success={},
+    RevisionConflict={'key': OneOf(str, ObjectFieldId, IndexId)},
+    Disconnected={}
+)
 
 
 class VersionedBase:
@@ -415,8 +415,6 @@ class DatabaseConnection:
 
         self._logger = logging.getLogger(__name__)
 
-
-
     def registerOnTransactionHandler(self, handler):
         self._onTransactionHandlers.append(handler)
 
@@ -497,7 +495,7 @@ class DatabaseConnection:
         self.subscribeMultiple([
             (type(t).__schema__.name, type(t).__qualname__, ("_identity", keymapping.index_value_to_hash(t._identity)), False)
                 for t in objects
-            ])
+        ])
 
     def _lazinessForType(self, typeObj, desiredLaziness):
         if desiredLaziness is not None:
@@ -515,8 +513,7 @@ class DatabaseConnection:
                 t.__schema__.name,
                 t.__qualname__,
                 (fieldname, keymapping.index_value_to_hash(fieldvalue)),
-                self._lazinessForType(t, lazySubscription)
-            )
+                self._lazinessForType(t, lazySubscription))
             )
 
         return self.subscribeMultiple(toSubscribe, block=block)
@@ -796,7 +793,7 @@ class DatabaseConnection:
                         "_onTransaction handler %s threw an exception:\n%s",
                         handler,
                         traceback.format_exc()
-                        )
+                    )
 
         elif msg.matches.SchemaMapping:
             with self._lock:
@@ -1021,7 +1018,8 @@ class DatabaseConnection:
             for o in objects:
                 fieldId = self._fields_to_field_ids[
                     FieldDefinition(schema=o.__schema__.name, typename=type(o).__qualname__, fieldname=" exists")
-                    ]
+                ]
+
                 objFieldId = ObjectFieldId(fieldId=fieldId,objId=o._identity)
 
                 if o._identity in self._lazy_objects and not self._versioned_data.hasDataForKey(objFieldId):
