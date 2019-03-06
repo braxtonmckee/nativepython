@@ -245,7 +245,8 @@ void PyTupleOrListOfInstance::copyConstructFromPythonInstanceConcrete(TupleOrLis
     if (PyTuple_Check(pyRepresentation)) {
         tupT->constructor(tgt, PyTuple_Size(pyRepresentation),
             [&](uint8_t* eltPtr, int64_t k) {
-                PyInstance::copyConstructFromPythonInstance(tupT->getEltType(), eltPtr, PyTuple_GetItem(pyRepresentation,k));
+                PyObjectHolder arg(PyTuple_GetItem(pyRepresentation,k));
+                PyInstance::copyConstructFromPythonInstance(tupT->getEltType(), eltPtr, arg);
                 }
             );
         return;
@@ -253,7 +254,8 @@ void PyTupleOrListOfInstance::copyConstructFromPythonInstanceConcrete(TupleOrLis
     if (PyList_Check(pyRepresentation)) {
         tupT->constructor(tgt, PyList_Size(pyRepresentation),
             [&](uint8_t* eltPtr, int64_t k) {
-                PyInstance::copyConstructFromPythonInstance(tupT->getEltType(), eltPtr, PyList_GetItem(pyRepresentation,k));
+                PyObjectHolder listItem(PyList_GetItem(pyRepresentation,k));
+                PyInstance::copyConstructFromPythonInstance(tupT->getEltType(), eltPtr, listItem);
                 }
             );
         return;
@@ -453,17 +455,17 @@ PyObject* PyListOfInstance::listAppend(PyObject* o, PyObject* args) {
             return NULL;
         }
 
-        PyObject* value = PyTuple_GetItem(args, 0);
+        PyObjectHolder value(PyTuple_GetItem(args, 0));
 
         PyListOfInstance* self_w = (PyListOfInstance*)o;
-        PyInstance* value_w = (PyInstance*)value;
+        PyInstance* value_w = (PyInstance*)(PyObject*)value;
 
         Type* value_type = extractTypeFrom(value->ob_type);
 
         Type* eltType = self_w->type()->getEltType();
 
         if (value_type == eltType) {
-            PyInstance* value_w = (PyInstance*)value;
+            PyInstance* value_w = (PyInstance*)(PyObject*)value;
 
             self_w->type()->append(self_w->dataPtr(), value_w->dataPtr());
         } else {

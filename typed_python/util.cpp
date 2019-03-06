@@ -12,7 +12,7 @@ bool unpackTupleToTypes(PyObject* tuple, std::vector<Type*>& out) {
         return false;
     }
     for (int i = 0; i < PyTuple_Size(tuple); ++i) {
-        PyObject* entry = PyTuple_GetItem(tuple, i);
+        PyObjectHolder entry(PyTuple_GetItem(tuple, i));
         Type* targetType = NULL;
 
         targetType = PyInstance::tryUnwrapPyInstanceToType(entry);
@@ -31,7 +31,7 @@ bool unpackTupleToStringAndTypes(PyObject* tuple, std::vector<std::pair<std::str
     std::set<std::string> memberNames;
 
     for (int i = 0; i < PyTuple_Size(tuple); ++i) {
-        PyObject* entry = PyTuple_GetItem(tuple, i);
+        PyObjectHolder entry(PyTuple_GetItem(tuple, i));
         Type* targetType = NULL;
 
         if (!PyTuple_Check(entry) || PyTuple_Size(entry) != 2
@@ -67,7 +67,7 @@ bool unpackTupleToStringTypesAndValues(PyObject* tuple, std::vector<std::tuple<s
     std::set<std::string> memberNames;
 
     for (int i = 0; i < PyTuple_Size(tuple); ++i) {
-        PyObject* entry = PyTuple_GetItem(tuple, i);
+        PyObjectHolder entry(PyTuple_GetItem(tuple, i));
         Type* targetType = NULL;
 
         if (!PyTuple_Check(entry) || PyTuple_Size(entry) != 3
@@ -91,7 +91,9 @@ bool unpackTupleToStringTypesAndValues(PyObject* tuple, std::vector<std::tuple<s
 
         memberNames.insert(memberName);
 
-        Instance inst = PyInstance::unwrapPyObjectToInstance(PyTuple_GetItem(entry, 2));
+        PyObjectHolder entry_2(PyTuple_GetItem(entry, 2));
+
+        Instance inst = PyInstance::unwrapPyObjectToInstance(entry_2);
 
         if (PyErr_Occurred()) {
             return false;
@@ -113,7 +115,7 @@ bool unpackTupleToStringAndObjects(PyObject* tuple, std::vector<std::pair<std::s
     std::set<std::string> memberNames;
 
     for (int i = 0; i < PyTuple_Size(tuple); ++i) {
-        PyObject* entry = PyTuple_GetItem(tuple, i);
+        PyObjectHolder entry(PyTuple_GetItem(tuple, i));
         Type* targetType = NULL;
 
         if (!PyTuple_Check(entry) || PyTuple_Size(entry) != 2

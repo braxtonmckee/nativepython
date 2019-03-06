@@ -35,6 +35,8 @@ public:
 
     static Instance create(Type*t, instance_ptr data);
 
+    static Instance create(Type*t);
+
     Instance();
 
     Instance(const Instance& other);
@@ -75,11 +77,17 @@ public:
 
     int32_t hash32() const;
 
-    Type* type() const;
+    Type* type() const {
+        return mLayout->type;
+    }
 
-    instance_ptr data() const;
+    instance_ptr data() const {
+        return mLayout->data;
+    }
 
-    int64_t refcount() const;
+    int64_t refcount() const {
+        return mLayout->refcount;
+    }
 
 private:
     layout* mLayout;

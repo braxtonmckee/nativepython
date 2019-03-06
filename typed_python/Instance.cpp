@@ -43,6 +43,13 @@ Instance Instance::create(Type*t, instance_ptr data) {
         t->copy_constructor(tgt, data);
     });
 }
+Instance Instance::create(Type*t) {
+    t->assertForwardsResolved();
+
+    return createAndInitialize(t, [&](instance_ptr tgt) {
+        t->constructor(tgt);
+    });
+}
 
 Instance::Instance() {
     // by default, None
@@ -112,16 +119,4 @@ std::string Instance::repr() const {
 
 int32_t Instance::hash32() const {
     return mLayout->type->hash32(mLayout->data);
-}
-
-Type* Instance::type() const {
-    return mLayout->type;
-}
-
-instance_ptr Instance::data() const {
-    return mLayout->data;
-}
-
-int64_t Instance::refcount() const {
-    return mLayout->refcount;
 }

@@ -138,12 +138,12 @@ void PyConcreteAlternativeInstance::constructFromPythonArgumentsConcrete(Concret
             //construct an alternative from a single argument.
             //if it's a binary compatible subtype of the alternative we're constructing, then
             //invoke the copy constructor.
-            PyObject* arg = PyTuple_GetItem(args, 0);
+            PyObjectHolder arg(PyTuple_GetItem(args, 0));
             Type* argType = extractTypeFrom(arg->ob_type);
 
             if (argType && alt == argType) {
                 //it's already the right kind of instance, so we can copy-through the underlying element
-                alt->elementType()->copy_constructor(p, alt->eltPtr(((PyInstance*)arg)->dataPtr()));
+                alt->elementType()->copy_constructor(p, alt->eltPtr(((PyInstance*)(PyObject*)arg)->dataPtr()));
                 return;
             }
 

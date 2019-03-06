@@ -17,7 +17,7 @@ std::pair<bool, PyObject*> PyFunctionInstance::tryToCallOverload(const Function:
     }
 
     for (long k = 0; k < PyTuple_Size(args); k++) {
-        PyObject* elt = PyTuple_GetItem(args, k);
+        PyObjectHolder elt(PyTuple_GetItem(args, k));
 
         //what type would we need for this unnamed arg?
         Type* targetType = matcher.requiredTypeForArg(nullptr);
@@ -189,9 +189,11 @@ std::pair<bool, PyObject*> PyFunctionInstance::dispatchFunctionCallToCompiledSpe
         }
 
         try {
+            PyObjectHolder arg(PyTuple_GetItem(argTuple, k));
+
             instances.push_back(
                 Instance::createAndInitialize(argType, [&](instance_ptr p) {
-                    copyConstructFromPythonInstance(argType, p, PyTuple_GetItem(argTuple, k));
+                    copyConstructFromPythonInstance(argType, p, arg);
                 })
                 );
             }

@@ -46,15 +46,15 @@ PyObject* PyDictInstance::dictGet(PyObject* o, PyObject* args) {
         return NULL;
     }
 
-    PyObject* item = PyTuple_GetItem(args,0);
-    PyObject* ifNotFound = (PyTuple_Size(args) == 2 ? PyTuple_GetItem(args,1) : Py_None);
+    PyObjectHolder item(PyTuple_GetItem(args,0));
+    PyObjectHolder ifNotFound((PyTuple_Size(args) == 2 ? PyTuple_GetItem(args,1) : Py_None));
 
     Type* self_type = extractTypeFrom(o->ob_type);
     Type* item_type = extractTypeFrom(item->ob_type);
 
     if (self_type->getTypeCategory() == Type::TypeCategory::catDict) {
         if (item_type == self_w->type()->keyType()) {
-            PyInstance* item_w = (PyInstance*)item;
+            PyInstance* item_w = (PyInstance*)(PyObject*)item;
 
             instance_ptr i = self_w->type()->lookupValueByKey(self_w->dataPtr(), item_w->dataPtr());
 

@@ -306,9 +306,14 @@ void PythonSerializationContext::serializePyRepresentation(PyObject* representat
         decref(representation);
         throw std::runtime_error("representationFor second arguments should be a tuple");
     }
-    serializePythonObject(PyTuple_GetItem(representation, 0), b);
-    serializePythonObject(PyTuple_GetItem(representation, 1), b);
-    serializePythonObject(PyTuple_GetItem(representation, 2), b);
+
+    PyObjectHolder rep0(PyTuple_GetItem(representation, 0));
+    PyObjectHolder rep1(PyTuple_GetItem(representation, 1));
+    PyObjectHolder rep2(PyTuple_GetItem(representation, 2));
+
+    serializePythonObject(rep0, b);
+    serializePythonObject(rep1, b);
+    serializePythonObject(rep2, b);
 }
 
 PyObject* PythonSerializationContext::deserializePythonObjectNamedOrAsObj(DeserializationBuffer& b) const {

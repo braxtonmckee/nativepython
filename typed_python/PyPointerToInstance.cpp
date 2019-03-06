@@ -26,7 +26,9 @@ PyObject* PyPointerToInstance::pointerInitialize(PyObject* o, PyObject* args) {
         return incref(Py_None);
     } else {
         try {
-            copyConstructFromPythonInstance(pointerT->getEltType(), target, PyTuple_GetItem(args, 0));
+            PyObjectHolder arg0(PyTuple_GetItem(args,0));
+
+            copyConstructFromPythonInstance(pointerT->getEltType(), target, arg0);
             return incref(Py_None);
         } catch(std::exception& e) {
             PyErr_SetString(PyExc_TypeError, e.what());
@@ -50,8 +52,11 @@ PyObject* PyPointerToInstance::pointerSet(PyObject* o, PyObject* args) {
     instance_ptr target = (instance_ptr)*(void**)self_w->dataPtr();
 
     instance_ptr tempObj = (instance_ptr)malloc(pointerT->getEltType()->bytecount());
+
     try {
-        copyConstructFromPythonInstance(pointerT->getEltType(), tempObj, PyTuple_GetItem(args, 0));
+        PyObjectHolder arg0(PyTuple_GetItem(args,0));
+
+        copyConstructFromPythonInstance(pointerT->getEltType(), tempObj, arg0);
     } catch(std::exception& e) {
         free(tempObj);
         PyErr_SetString(PyExc_TypeError, e.what());
@@ -100,7 +105,9 @@ PyObject* PyPointerToInstance::pointerCast(PyObject* o, PyObject* args) {
         return NULL;
     }
 
-    Type* targetType = PyPointerToInstance::unwrapTypeArgToTypePtr(PyTuple_GetItem(args, 0));
+    PyObjectHolder arg0(PyTuple_GetItem(args, 0));
+
+    Type* targetType = PyPointerToInstance::unwrapTypeArgToTypePtr(arg0);
 
     if (!targetType) {
         PyErr_SetString(PyExc_TypeError, "PointerTo.cast requires a type argument");

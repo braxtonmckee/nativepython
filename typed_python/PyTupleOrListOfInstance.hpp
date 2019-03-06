@@ -67,8 +67,10 @@ public:
         int lenO = PyList_Size(other);
         int lenS = listT->count(self);
         for (long k = 0; k < lenO && k < lenS; k++) {
-            if (!compare_to_python(listT->getEltType(), listT->eltPtr(self, k), PyList_GetItem(other,k), exact, Py_EQ)) {
-                if (compare_to_python(listT->getEltType(), listT->eltPtr(self, k), PyList_GetItem(other,k), exact, Py_LT)) {
+            PyObjectHolder listItem(PyList_GetItem(other,k));
+
+            if (!compare_to_python(listT->getEltType(), listT->eltPtr(self, k), listItem, exact, Py_EQ)) {
+                if (compare_to_python(listT->getEltType(), listT->eltPtr(self, k), listItem, exact, Py_LT)) {
                     return convert(-1);
                 }
                 return convert(1);
@@ -100,8 +102,10 @@ public:
         int lenS = tupT->count(self);
 
         for (long k = 0; k < lenO && k < lenS; k++) {
-            if (!compare_to_python(tupT->getEltType(), tupT->eltPtr(self, k), PyTuple_GetItem(other,k), exact, Py_EQ)) {
-                if (compare_to_python(tupT->getEltType(), tupT->eltPtr(self, k), PyTuple_GetItem(other,k), exact, Py_LT)) {
+            PyObjectHolder arg(PyTuple_GetItem(other,k));
+
+            if (!compare_to_python(tupT->getEltType(), tupT->eltPtr(self, k), arg, exact, Py_EQ)) {
+                if (compare_to_python(tupT->getEltType(), tupT->eltPtr(self, k), arg, exact, Py_LT)) {
                     return convert(-1);
                 }
                 return convert(1);

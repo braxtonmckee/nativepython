@@ -20,7 +20,8 @@ public:
 
             eltType->constructor(tgt,
                 [&](uint8_t* eltPtr, int64_t k) {
-                    copyConstructFromPythonInstance(eltType->getTypes()[k], eltPtr, PyTuple_GetItem(pyRepresentation,k));
+                    PyObjectHolder arg(PyTuple_GetItem(pyRepresentation, k));
+                    copyConstructFromPythonInstance(eltType->getTypes()[k], eltPtr, arg);
                     }
                 );
             return;
@@ -32,7 +33,8 @@ public:
 
             eltType->constructor(tgt,
                 [&](uint8_t* eltPtr, int64_t k) {
-                    copyConstructFromPythonInstance(eltType->getTypes()[k], eltPtr, PyList_GetItem(pyRepresentation,k));
+                    PyObjectHolder listItem(PyList_GetItem(pyRepresentation,k));
+                    copyConstructFromPythonInstance(eltType->getTypes()[k], eltPtr, listItem);
                     }
                 );
             return;
@@ -52,8 +54,10 @@ public:
         int lenS = tupT->getTypes().size();
 
         for (long k = 0; k < lenO && k < lenS; k++) {
-            if (!compare_to_python(tupT->getTypes()[k], tupT->eltPtr(self, k), PyTuple_GetItem(other,k), exact, Py_EQ)) {
-                if (compare_to_python(tupT->getTypes()[k], tupT->eltPtr(self, k), PyTuple_GetItem(other,k), exact, Py_LT)) {
+            PyObjectHolder arg(PyTuple_GetItem(other, k));
+
+            if (!compare_to_python(tupT->getTypes()[k], tupT->eltPtr(self, k), arg, exact, Py_EQ)) {
+                if (compare_to_python(tupT->getTypes()[k], tupT->eltPtr(self, k), arg, exact, Py_LT)) {
                     return convert(-1);
                 }
                 return convert(1);
