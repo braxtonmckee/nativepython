@@ -17,19 +17,13 @@ import pkg_resources
 from distutils.command.build_ext import build_ext
 from distutils.extension import Extension
 
-def is_numpy_installed():
-    try:
-        import numpy  # noqa
-        numpy_installed = True
-    except ImportError:
-        numpy_installed = False
-    return numpy_installed
-
 class NumpyBuildExtension(build_ext):
-    """Used for when numpy headers are needed during build"""
+    """
+    Used for when numpy headers are needed during build.
+    Ensures that numpy will be installed before attempting
+    to include any of its libraries
+    """
     def run(self):
-        #import numpy
-        #self.include_dirs.append(numpy.get_include())
         self.include_dirs.append(pkg_resources.resource_filename('numpy', 'core/include'))
         build_ext.run(self)
 
@@ -53,35 +47,6 @@ ext_modules = [Extension(
         '-Wno-unused-'
     ]
 )]
-
-''''ext_modules=[
-        setuptools.Extension(
-            'typed_python._types',
-            sources=[
-                'typed_python/all.cpp',
-            ],
-            define_macros=[
-                ("_FORTIFY_SOURCE", 2)
-            ],
-            extra_compile_args=[
-                '-O2',
-                '-fstack-protector-strong',
-                '-Wformat',
-                '-Wdate-time',
-                '-Werror=format-security',
-                '-std=c++14',
-                '-Wno-sign-compare',
-                '-Wno-narrowing',
-                '-Wno-unused-variable'
-            ],
-            # pkg_resources.resouce_filename raises an exception if numpy is
-            # not installed, so we check if it is installed. This works because
-            # setup.py is called first to collect and install dependencies,
-            # and then to install the package itself.
-            include_dirs=[
-                pkg_resources.resource_filename('numpy', 'core/include')
-            ]
-        )'''
 
 setuptools.setup(
     name='nativepython',
@@ -109,7 +74,7 @@ setuptools.setup(
         'ldap3',
         'llvmlite',
         'lz4',
-        'nose', # Added so test.py will run
+        'nose',
         'numpy',
         'psutil',
         'pytz',
