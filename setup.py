@@ -14,7 +14,8 @@
 
 import setuptools
 import pkg_resources
-
+from distutils.command.build_ext import build_ext
+from distutils.extension import Extension
 
 def is_numpy_installed():
     try:
@@ -24,16 +25,36 @@ def is_numpy_installed():
         numpy_installed = False
     return numpy_installed
 
+class NumpyBuildExtension(build_ext):
+    """Used for when numpy headers are needed during build"""
+    def run(self):
+        #import numpy
+        #self.include_dirs.append(numpy.get_include())
+        self.include_dirs.append(pkg_resources.resource_filename('numpy', 'core/include'))
+        build_ext.run(self)
 
-setuptools.setup(
-    name='nativepython',
-    version='0.0.1',
-    description='Tools for generating machine code using python.',
-    author='Braxton Mckee',
-    author_email='braxton.mckee@gmail.com',
-    url='https://github.com/braxtonmckee/nativepython',
-    packages=setuptools.find_packages(),
-    ext_modules=[
+ext_modules = [Extension(
+   'typed_python._types',
+    sources=[
+        'typed_python/all.cpp',
+    ],
+    define_macros=[
+        ("_FORTIFY_SOURCE", 2)
+    ],
+    extra_compile_args=[
+        '-O2',
+        '-fstack-protector-strong',
+        '-Wformat',
+        '-Wdate-time',
+        '-Werror=format-security',
+        '-std=c++14',
+        '-Wno-sign-compare',
+        '-Wno-narrowing',
+        '-Wno-unused-'
+    ]
+)]
+
+''''ext_modules=[
         setuptools.Extension(
             'typed_python._types',
             sources=[
@@ -59,11 +80,26 @@ setuptools.setup(
             # and then to install the package itself.
             include_dirs=[
                 pkg_resources.resource_filename('numpy', 'core/include')
-            ] if is_numpy_installed() else []
-        )
+            ]
+        )'''
+
+setuptools.setup(
+    name='nativepython',
+    version='0.0.1',
+    description='Tools for generating machine code using python.',
+    author='Braxton Mckee',
+    author_email='braxton.mckee@gmail.com',
+    url='https://github.com/braxtonmckee/nativepython',
+    packages=setuptools.find_packages(),
+    cmdclass={'build_ext': NumpyBuildExtension},
+    ext_modules=ext_modules,
+    setup_requires=[
+        'numpy',
+        'flask'
     ],
     install_requires=[
         'boto3',
+        'flask',
         'flask-login',
         'flask-sockets',
         'flask-wtf',
@@ -71,6 +107,7 @@ setuptools.setup(
         'ldap3',
         'llvmlite',
         'lz4',
+        'nose', # Added so test.py will run
         'numpy',
         'psutil',
         'pytz',
