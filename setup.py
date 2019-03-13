@@ -99,7 +99,9 @@ setuptools.setup(
     ],
     install_requires=[
         'boto3',
+        'bs4',
         'flask',
+        'flask_cors',
         'flask-login',
         'flask-sockets',
         'flask-wtf',
