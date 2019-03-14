@@ -46,7 +46,7 @@ public:
             assert(t == subtype_pair.second);
         }
         for (auto& method_pair: m_methods) {
-            Type* t = method_pair.second;
+            Type* t = (Type*)method_pair.second;
             visitor(t);
             assert(t == method_pair.second);
         }
