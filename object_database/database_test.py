@@ -1489,10 +1489,16 @@ class ObjectDatabaseOverChannelTestsWithRedis(unittest.TestCase, ObjectDatabaseT
             self.redisProcess.terminate()
             self.redisProcess.wait()
 
+        redis_path = "/usr/bin/redis-server"
+        if not os.path.isfile(redis_path):
+            redis_path = "/usr/local/bin/redis-server"
+
         self.redisProcess = subprocess.Popen(
-            ["/usr/bin/redis-server", '--port', '1115', '--logfile', os.path.join(self.tempDirName, "log.txt"),
-                "--dbfilename", "db.rdb", "--dir", os.path.join(self.tempDirName)]
+            [redis_path, '--port', '1115',
+             '--logfile', os.path.join(self.tempDirName, "log.txt"),
+             "--dbfilename", "db.rdb", "--dir", os.path.join(self.tempDirName)]
         )
+
         time.sleep(.5)
         assert self.redisProcess.poll() is None
 

@@ -93,7 +93,7 @@ class OrderedFilterAction(argparse.Action):
 
 class PythonTestArgumentParser(argparse.ArgumentParser):
     def __init__(self):
-        super(PythonTestArgumentParser, self).__init__(add_help=False)
+        super(PythonTestArgumentParser, self).__init__(add_help=True)
         self.add_argument(
             '-v',
             dest='testHarnessVerbose',
@@ -535,7 +535,9 @@ def buildModule(args):
         [sys.executable, 'setup.py', 'develop', '--install-dir', './build/install'],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        env={'PYTHONPATH': (os.environ.get('PYTHONPATH', '') + ":") + os.path.abspath("./build/install")}
+        env={'PYTHONPATH': (os.environ.get('PYTHONPATH', '') + ":") + os.path.abspath("./build/install"),
+             'PATH': os.environ.get('PATH')
+             }
     )
 
     if result.returncode != 0:
