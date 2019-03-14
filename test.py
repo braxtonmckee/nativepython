@@ -148,6 +148,12 @@ class PythonTestArgumentParser(argparse.ArgumentParser):
             action=OrderedFilterAction,
             default=None
         )
+        self.add_argument(
+            '--error_output_dir',
+            help="error output dir; will create if doesn't exist.",
+            type=str,
+            default=None
+        )
 
     def parse_args(self, toParse):
         argholder = super(PythonTestArgumentParser, self).parse_args(toParse)
@@ -364,7 +370,8 @@ class OutputCapturePlugin(nose.plugins.base.Plugin):
         self.fname = "nose.%s.%s.log" % (test.id(), os.getpid())
 
         if os.getenv("TEST_ERROR_OUTPUT_DIRECTORY", None) is not None:
-            self.fname = os.path.join(os.getenv("TEST_ERROR_OUTPUT_DIRECTORY"), self.fname)
+            self.fname = os.path.join(
+                os.getenv("TEST_ERROR_OUTPUT_DIRECTORY"), self.fname)
 
         self.outfile = open(self.fname, "w")
 
@@ -563,6 +570,12 @@ def main(args):
             result = buildModule(args)
             if result:
                 return result
+
+        if args.error_output_dir is not None:
+            os.makedirs(args.error_output_dir, exist_ok=True)
+            # export an env var; this is what the tests config look for in the
+            # OutputCapturePlugin class above
+            os.environ["TEST_ERROR_OUTPUT_DIRECTORY"] = args.error_output_dir
 
         from object_database.util import configureLogging
         configureLogging("test", logging.INFO)
