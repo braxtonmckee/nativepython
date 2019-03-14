@@ -121,10 +121,10 @@ class InMemServer(Server):
         channel = InMemoryChannel(self)
         channel.start()
 
-        self.addConnection(channel)
+        guid = self.addConnection(channel)
         self.channels.append(channel)
 
-        return channel
+        return channel, guid
 
     def connect(self, auth_token):
         dbc = DatabaseConnection(self.getChannel())

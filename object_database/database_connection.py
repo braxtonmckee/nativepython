@@ -421,7 +421,8 @@ class TransactionListener:
 
 
 class DatabaseConnection:
-    def __init__(self, channel):
+    def __init__(self, chan):
+        channel, guid = chan
         self._channel = channel
         self._transaction_callbacks = {}
 
@@ -474,6 +475,8 @@ class DatabaseConnection:
 
         self._logger = logging.getLogger(__name__)
 
+        self._guid = guid
+
     def registerOnTransactionHandler(self, handler):
         self._onTransactionHandlers.append(handler)
 
@@ -501,7 +504,7 @@ class DatabaseConnection:
 
     def authenticate(self, token):
         self._channel.write(
-            ClientToServer.Authenticate(token=token)
+            ClientToServer.Authenticate(token=token, channel_guid=self._guid)
         )
 
     def addSchema(self, schema):
@@ -518,7 +521,8 @@ class DatabaseConnection:
             self._channel.write(
                 ClientToServer.DefineSchema(
                     name=schema.name,
-                    definition=schemaDesc
+                    definition=schemaDesc,
+                    channel_guid=self._guid
                 )
             )
 
@@ -531,7 +535,7 @@ class DatabaseConnection:
             self._flushIx += 1
             ix = str(self._flushIx)
             e = self._flushEvents[ix] = threading.Event()
-            self._channel.write(ClientToServer.Flush(guid=ix))
+            self._channel.write(ClientToServer.Flush(channel_guid=self._guid, guid=ix))
 
         e.wait()
 
@@ -628,9 +632,10 @@ class DatabaseConnection:
                     e = self._pendingSubscriptions[(tup[0], tup[1], tup[2])] = threading.Event()
 
                 assert tup[0] and tup[1]
+                guid = self.identityProducer.createIdentity()
 
                 self._channel.write(
-                    ClientToServer.Subscribe(schema=tup[0], typename=tup[1], fieldname_and_value=tup[2], isLazy=tup[3])
+                    ClientToServer.Subscribe(schema=tup[0], typename=tup[1], fieldname_and_value=tup[2], isLazy=tup[3], channel_guid=self._guid)
                 )
 
                 events.append(e)
@@ -1069,11 +1074,14 @@ class DatabaseConnection:
 
         e = self._lazy_object_read_blocks[identity] = threading.Event()
 
+        guid = self.identityProducer.createIdentity()
+
         self._channel.write(
             ClientToServer.LoadLazyObject(
                 identity=identity,
                 schema=self._lazy_objects[identity][0],
-                typename=self._lazy_objects[identity][1]
+                typename=self._lazy_objects[identity][1],
+                channel_guid=self._guid
             )
         )
 
@@ -1103,7 +1111,8 @@ class DatabaseConnection:
                     ClientToServer.TransactionData(
                         writes=out_writes, set_adds={}, set_removes={},
                         key_versions=(), index_versions=(),
-                        transaction_guid=transaction_guid
+                        transaction_guid=transaction_guid,
+                        channel_guid=self._guid
                     )
                 )
                 self._channel.write(ClientToServer.Heartbeat())
@@ -1120,7 +1129,8 @@ class DatabaseConnection:
                     ClientToServer.TransactionData(
                         writes={}, set_adds=out_set_adds, set_removes={},
                         key_versions=(), index_versions=(),
-                        transaction_guid=transaction_guid
+                        transaction_guid=transaction_guid,
+                        channel_guid=self._guid
                     )
                 )
                 self._channel.write(ClientToServer.Heartbeat())
@@ -1138,7 +1148,8 @@ class DatabaseConnection:
                     ClientToServer.TransactionData(
                         writes={}, set_adds={}, set_removes=out_set_removes,
                         key_versions=(), index_versions=(),
-                        transaction_guid=transaction_guid
+                        transaction_guid=transaction_guid,
+                        channel_guid=self._guid
                     )
                 )
                 self._channel.write(ClientToServer.Heartbeat())
@@ -1151,7 +1162,8 @@ class DatabaseConnection:
                 ClientToServer.TransactionData(
                     writes={}, set_adds={}, set_removes={},
                     key_versions=keys_to_check_versions[:10000],
-                    index_versions=(), transaction_guid=transaction_guid
+                    index_versions=(), transaction_guid=transaction_guid,
+                    channel_guid=self._guid
                 )
             )
             self._channel.write(ClientToServer.Heartbeat())
@@ -1163,7 +1175,7 @@ class DatabaseConnection:
                 ClientToServer.TransactionData(
                     writes={}, set_adds={}, set_removes={},
                     key_versions=(), index_versions=indices_to_check_versions[:10000],
-                    transaction_guid=transaction_guid)
+                    transaction_guid=transaction_guid, channel_guid=self._guid),
             )
             indices_to_check_versions = indices_to_check_versions[10000:]
 
@@ -1174,13 +1186,15 @@ class DatabaseConnection:
                 set_removes=out_set_removes,
                 key_versions=keys_to_check_versions,
                 index_versions=indices_to_check_versions,
-                transaction_guid=transaction_guid
+                transaction_guid=transaction_guid,
+                channel_guid=self._guid
             )
         )
 
         self._channel.write(
             ClientToServer.CompleteTransaction(
                 as_of_version=as_of_version,
-                transaction_guid=transaction_guid
+                transaction_guid=transaction_guid,
+                channel_guid=self._guid
             )
         )

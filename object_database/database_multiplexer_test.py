@@ -82,7 +82,13 @@ class ObjectDatabaseMultiplexerTests(ObjectDatabaseTests):
     def test_disconnecting_is_immediate(self):
         pass
 
-class ObjectDatabaseMultiplexerOverChannelTests(unittest.TestCase, ObjectDatabaseMultiplexerTests):
+    def test_flush_db_works(self):
+        return
+
+    def test_object_versions_robust(self):
+        return
+
+class ObjectDatabaseMultiplexerOverChannelTests(ObjectDatabaseMultiplexerTests):
     @classmethod
     def setUpClass(cls):
         ObjectDatabaseTests.setUpClass()
@@ -95,14 +101,61 @@ class ObjectDatabaseMultiplexerOverChannelTests(unittest.TestCase, ObjectDatabas
         self.server._gc_interval = .1
         self.server.start()
         self.multiplexers = []
+        self._multiplexer = None
 
-    def createNewDb(self):
+    def createNewDbFromMultiplexer(self, multiplexer):
+        return multiplexer.connect(self.auth_token)
+
+    def createNewMultiplexer(self):
         multiplexer = InMemMultiplexer(self.server, auth_token=self.auth_token)
         multiplexer.start()
         self.multiplexers.append(multiplexer)
-        return multiplexer.connect(self.auth_token)
+        return multiplexer
 
     def tearDown(self):
         for multiplexer in self.multiplexers:
             multiplexer.stop()
         self.server.stop()
+
+class ODbMOverChannelTestsMM(ObjectDatabaseMultiplexerOverChannelTests, unittest.TestCase):
+    def createNewDb(self):
+        multiplexer = self.createNewMultiplexer()
+        return self.createNewDbFromMultiplexer(multiplexer)
+
+    # def setUp(self):
+    #     ObjectDatabaseMultiplexerOverChannelTests.setUp(self)
+
+    def test_two_dbs(self):
+        m = self.createNewMultiplexer()
+        db1 = self.createNewDbFromMultiplexer(m)
+        db2 = self.createNewDbFromMultiplexer(m)
+
+        db1.subscribeToIndex(Counter, k=0)
+        db2.subscribeToIndex(Counter, k=1)
+
+    def test_two_multiplexers(self):
+        m1 = self.createNewMultiplexer()
+        m2 = self.createNewMultiplexer()
+        db1 = self.createNewDbFromMultiplexer(m1)
+        db2 = self.createNewDbFromMultiplexer(m2)
+
+        db1.subscribeToSchema(schema)
+        db1.subscribeToIndex(Counter, k=0)
+        db2.subscribeToIndex(Counter, k=1)
+
+    def test_three_dbs_on_two_multiplexers(self):
+        m1 = self.createNewMultiplexer()
+        m2 = self.createNewMultiplexer()
+        db1 = self.createNewDbFromMultiplexer(m1)
+        db2 = self.createNewDbFromMultiplexer(m2)
+        db3 = self.createNewDbFromMultiplexer(m2)
+
+        db1.subscribeToIndex(Counter, k=0)
+        db2.subscribeToIndex(Counter, k=0)
+        db3.subscribeToIndex(Counter, k=0)
+
+class ObjectDatabaseMultiplexerOverChannelTestsOneMultiplexer(ObjectDatabaseMultiplexerOverChannelTests, unittest.TestCase):
+    def createNewDb(self):
+        if self._multiplexer is None:
+            self._multiplexer = self.createNewMultiplexer()
+        return self.createNewDbFromMultiplexer(self._multiplexer)
