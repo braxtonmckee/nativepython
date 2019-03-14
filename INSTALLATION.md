@@ -2,6 +2,16 @@
 
 ## OSX ##
 
+#### Prerequisites ####
+* Python 3.6 (recommended installed with homebrew)
+  * Currently build is tested against `clang`, not `gcc`. For more information about installing `clang` and configuring your environment see [here](https://embeddedartistry.com/blog/2017/2/20/installing-clangllvm-on-osx)
+* It is recommended you use Pipenv ([see this link](https://pipenv.readthedocs.io/en/latest/install/#installing-pipenv)) to manage the application.
+  * You can also use virtualenv.
+* install Redis (`brew install redis`)
+
+
+
+
 ## Linux ##
 (These instructions are only for Ubuntu for the moment)
 
