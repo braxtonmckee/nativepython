@@ -90,13 +90,6 @@ class Multiplexer(Server):
             channel.channel.write(msg)
 
     def serverHandler(self, msg):
-        # print("Server to client message: {} from multiplexer {}".format(msg, id(self)))
-        # channelsTriggered = set()
-        # schemaTypePairsWriting = set()
-        # key_value = {}
-        # set_adds = {}
-        # set_removes = {}
-
         if msg.matches.Initialize:
             return
 
@@ -129,17 +122,12 @@ class Multiplexer(Server):
             return
 
         elif msg.matches.SubscriptionIncrease:
-            schema_name = msg.schema
-            typename = msg.typename
-            field, val = msg.fieldname_and_value
-            index_key = keymapping.index_key_from_names_encoded(schema_name, typename, field, val)
-            newIds = msg.identities
+            # I don't think this works, but let me get back to it later.
+            ids = msg.identities
 
-            for channel in self._index_to_channel.get(index_key, {}):
-                for new_id in newIds:
-                    self._id_to_channel.setdefault(new_id, set()).add(channel)
-                    channel.subscribedIds.add(new_id)
-                    channel.channel.write(msg)
+            for identity in ids:
+                if identity in self._guid_to_channel:
+                    self._guid_to_channel[identity].channel.write(msg)
 
         elif msg.matches.Disconnected:
             self.stop()

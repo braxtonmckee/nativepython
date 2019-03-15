@@ -22,35 +22,36 @@ ClientToServer = Alternative(
         "key_versions": TupleOf(str),
         "index_versions": TupleOf(str),
         "transaction_guid": str,
-        "channel_guid": str
+        "connIdentity": str
     },
     CompleteTransaction={
         "as_of_version": int,
         "transaction_guid": str,
-        "channel_guid": str
+        "connIdentity": str
     },
     Heartbeat={},
-    DefineSchema={ 'name': str, 'definition': SchemaDefinition, "channel_guid": str },
-    LoadLazyObject={ 'schema': str, 'typename': str, 'identity': str, 'channel_guid': str },
+    DefineSchema={ 'name': str, 'definition': SchemaDefinition, "connIdentity": str },
+    LoadLazyObject={ 'schema': str, 'typename': str, 'identity': str, 'connIdentity': str },
     Subscribe={
         'schema': str,
         'typename': OneOf(None, str),
         'fieldname_and_value': OneOf(None, Tuple(str, str)),
         'isLazy': bool,  # load values when we first request them, instead of blocking on all the data.
-        'channel_guid': str
+        'connIdentity': str
     },
-    Flush={'channel_guid': str, 'guid': str},
-    Authenticate={'token': str, "channel_guid": str},
-    AddChannel={'channel_guid': str},
-    DropChannel={'channel_guid': str}
+    Flush={'connIdentity': str, 'guid': str},
+    Authenticate={'token': str, "connIdentity": str},
+    AddChannel={'connIdentity': str, 'temp_id': str, 'new_connIdentity': str},
+    DropChannel={'connIdentity': str, 'temp_id': str}
 )
 
 
 ServerToClient = Alternative(
     "ServerToClient",
-    Initialize={'transaction_num': int, 'connIdentity': str, 'identity_root': int, 'channel_guid': str},
-    TransactionResult={'transaction_guid': str, 'success': bool, 'badKey': OneOf(None, str), 'channel_guid': str },
-    FlushResponse={'channel_guid': str, 'guid': str},
+    SetConnectionId={'new_connIdentity': str, 'identity_root': int, 'connIdentity': str},
+    Initialize={'connIdentity': str, 'transaction_num': int, 'identity_root': int},
+    TransactionResult={'transaction_guid': str, 'success': bool, 'badKey': OneOf(None, str), 'connIdentity': str },
+    FlushResponse={'connIdentity': str, 'guid': str},
     SubscriptionData={
         'schema': str,
         'typename': OneOf(None, str),
@@ -58,24 +59,24 @@ ServerToClient = Alternative(
         'values': ConstDict(str, OneOf(None, str)),  # value
         'index_values': ConstDict(str, OneOf(None, str)),
         'identities': OneOf(None, TupleOf(str)),  # the identities in play if this is an index-level subscription
-        'channel_guid': str
+        'connIdentity': str
     },
-    LazyTransactionPriors={ 'writes': ConstDict(str, OneOf(None, str)), 'channel_guid': str },
-    LazyLoadResponse={ 'identity': str, 'values': ConstDict(str, OneOf(None, str)), 'channel_guid': str },
+    # LazyTransactionPriors={ 'writes': ConstDict(str, OneOf(None, str)), 'channel_guid': str },
+    LazyLoadResponse={ 'identity': str, 'values': ConstDict(str, OneOf(None, str)), 'connIdentity': str },
     LazySubscriptionData={
         'schema': str,
         'typename': OneOf(None, str),
         'fieldname_and_value': OneOf(None, Tuple(str, str)),
         'identities': TupleOf(str),
         'index_values': ConstDict(str, OneOf(None, str)),
-        'channel_guid': str
+        'connIdentity': str
     },
     SubscriptionComplete={
         'schema': str,
         'typename': OneOf(None, str),
         'fieldname_and_value': OneOf(None, Tuple(str, str)),
         'tid': int,  # marker transaction id
-        'channel_guid': str
+        'connIdentity': str
     },
     SubscriptionIncrease={
         'schema': str,

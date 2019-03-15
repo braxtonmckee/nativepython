@@ -154,6 +154,102 @@ class ODbMOverChannelTestsMM(ObjectDatabaseMultiplexerOverChannelTests, unittest
         db2.subscribeToIndex(Counter, k=0)
         db3.subscribeToIndex(Counter, k=0)
 
+    def test_wait_for_condition_one_multiplexer(self):
+        m1=self.createNewMultiplexer()
+        m2=self.createNewMultiplexer()
+        db1 = self.createNewDbFromMultiplexer(m1)
+        db2 = self.createNewDbFromMultiplexer(m1)
+
+        db1.subscribeToSchema(schema)
+
+        db1.subscribeToIndex(Counter, k=0)
+        db2.subscribeToIndex(Counter, k=1)
+
+        # create a new value in the view and verify it shows up
+        with db1.transaction():
+            c2_0 = Counter(k=0)
+
+        # now move c2_0 from '0' to '1'. It should show up in db2 and still in db1
+        with db1.transaction():
+            c2_0.k = 1
+
+        # with db1.transaction():
+        #    c2_0.x = 40
+
+        db2.waitForCondition(lambda: c2_0.x == 40, 2*self.PERFORMANCE_FACTOR)
+
+    def test_index_subscriptions_two_multiplexers(self):
+        m1=self.createNewMultiplexer()
+        m2=self.createNewMultiplexer()
+        db_all = self.createNewDbFromMultiplexer(m1)
+        db1 = self.createNewDbFromMultiplexer(m1)
+        db2 = self.createNewDbFromMultiplexer(m1)
+
+        db_all.subscribeToSchema(schema)
+        with db_all.transaction():
+            c0 = Counter(k=0)
+            c1 = Counter(k=1)
+
+            c0.x = 20
+            c1.x = 30
+
+        db1.subscribeToIndex(Counter, k=0)
+        db2.subscribeToIndex(Counter, k=1)
+
+        with db1.view():
+            self.assertTrue(c0.exists())
+            self.assertEqual(c0.x, 20)
+            self.assertFalse(c1.exists())
+
+        with db2.view():
+            self.assertTrue(c1.exists())
+            self.assertEqual(c1.x, 30)
+            self.assertFalse(c0.exists())
+
+        # create a new value in the view and verify it shows up
+        with db_all.transaction():
+            c2_0 = Counter(k=0)
+            c2_1 = Counter(k=1)
+
+        db1.waitForCondition(lambda: c2_0.exists(), 2*self.PERFORMANCE_FACTOR)
+        db2.waitForCondition(lambda: c2_1.exists(), 2*self.PERFORMANCE_FACTOR)
+
+        with db2.view():
+            self.assertFalse(c2_0.exists())
+        with db1.view():
+            self.assertFalse(c2_1.exists())
+
+        # now move c2_0 from '0' to '1'. It should show up in db2 and still in db1
+        with db_all.transaction():
+            c2_0.k = 1
+
+        db1.waitForCondition(lambda: c2_0.exists(), 2*self.PERFORMANCE_FACTOR)
+        db2.waitForCondition(lambda: c2_0.exists(), 2*self.PERFORMANCE_FACTOR)
+
+        # now, we should see it get subscribed to in both
+        with db_all.transaction():
+            c2_0.x = 40
+
+        db1.waitForCondition(lambda: c2_0.x == 40, 2*self.PERFORMANCE_FACTOR)
+        db2.waitForCondition(lambda: c2_0.x == 40, 2*self.PERFORMANCE_FACTOR)
+
+        # but if we make a new database connection and subscribe, we won't see it
+        db3 = self.createNewDbFromMultiplexer(m1)
+        db3.subscribeToIndex(Counter, k=0)
+        db3.flush()
+
+        with db3.view():
+            self.assertTrue(not c2_0.exists())
+            self.assertTrue(not c2_1.exists())
+
+        db4 = self.createNewDbFromMultiplexer(m2)
+        db4.subscribeToIndex(Counter, k=0)
+        db4.flush()
+
+        with db4.view():
+            self.assertTrue(not c2_0.exists())
+            self.assertTrue(not c2_1.exists())
+
 class ObjectDatabaseMultiplexerOverChannelTestsOneMultiplexer(ObjectDatabaseMultiplexerOverChannelTests, unittest.TestCase):
     def createNewDb(self):
         if self._multiplexer is None:
