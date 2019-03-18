@@ -88,8 +88,8 @@ class InMemoryChannel:
         self.write(msg)
 
     def write(self, msg):
-        print("Channel: {}".format(id(self)))
-        print(msg)
+        # print("Channel: {}".format(id(self)))
+        # print(msg)
         if isinstance(msg, ClientToServer):
             self._clientToServerMsgQueue.put(msg)
         elif isinstance(msg, ServerToClient):

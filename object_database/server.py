@@ -751,7 +751,7 @@ class Server:
 
     def _updateIndexSubscriptions(self, key_value, set_adds, set_removes):
         # check any index-level subscriptions that are going to increase as a result of this
-        # transaction and add the backing data to the relevant transaction.
+        # transaction and add the backgroundcking data to the relevant transaction.
         for index_key, adds in list(set_adds.items()):
             idsToAddToTransaction = set()
 

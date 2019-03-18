@@ -382,6 +382,31 @@ class ObjectDatabaseTests:
             self.assertEqual(t2.h(), 4)
             self.assertEqual(t2.y, 3)
 
+    def test_wait_for_condition_one_multiplexer(self):
+        db1 = self.createNewDb()
+        db2 = self.createNewDb()
+        # db_all = self.createNewDb()
+
+        # db_all.subscribeToSchema(schema)
+
+        db1.subscribeToSchema(schema)
+
+        db1.subscribeToIndex(Counter, k=0)
+        db2.subscribeToIndex(Counter, k=1)
+
+        # create a new value in the view and verify it shows up
+        with db1.transaction():
+            c2_0 = Counter(k=0)
+
+        # now move c2_0 from '0' to '1'. It should show up in db2 and still in db1
+        with db1.transaction():
+            c2_0.k = 1
+
+        # with db1.transaction():
+        #    c2_0.x = 40
+
+        db2.waitForCondition(lambda: c2_0.x == 40, 2*self.PERFORMANCE_FACTOR)
+
     def test_many_subscriptions(self):
         OK = []
         FINISHED = []
