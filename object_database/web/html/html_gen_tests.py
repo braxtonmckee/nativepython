@@ -29,17 +29,6 @@ class HTMLGeneratorTests(unittest.TestCase):
         stream = StringIO()
         element = HTMLElement('div')
         element.attributes['class'] = 'column-4 medium'
-        output = element.__str__()
-        self.assertEquals('<div class="column-4 medium"></div>', output)
-    """
-    def test_print_on_with_child(self):
-        stream = StringIO()
-        element = HTMLElement('div', {'class': "column-4 medium"})
-        child = HTMLElement('img', is_self_closing=True)
-        element.add_child(child)
-        expected = '''<div class="column-4 medium">\n    <img/>\n</div>'''
-        print("Running print_on...")
-        element.print_on(stream)
-        print("Printing output")
+        element.print_on(stream, newlines=False)
         output = stream.getvalue()
-        self.assertEquals(expected, output)"""
+        self.assertEquals('<div class="column-4 medium"></div>', output)

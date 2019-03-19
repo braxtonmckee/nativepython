@@ -32,12 +32,19 @@ class HTMLElement(AbstractHTMLWriter):
         if self.is_self_closing:
             raise HTMLElementChildrenError(
                 '{} elements do not have children'.format(self.tag_name))
-        else:
-            self.children.append(child_element)
-            child_element.parent = self
+        elif child_element.parent:
+            child_element.parent.remove_child(child_element)
+        self.children.append(child_element)
+        child_element.parent = self
+
+    def remove_child(self, child_element):
+        if child_element not in self.children:
+            return
+        self.children = [kid for kid in self.children if kid != child_element]
 
     def add_children(self, list_of_children):
-        self.children = self.children + list_of_children
+        for child in list_of_children:
+            self.add_child(child)
 
     def add_class(self, cls_string):
         if 'class' in self.attributes:
@@ -62,6 +69,11 @@ class HTMLElement(AbstractHTMLWriter):
 
     def __repr__(self):
         return "<{} [{}]>".format(self.__class__.__name__, self.tag_name)
+
+    def pretty_print(self, indent_increment=2):
+        stream = StringIO()
+        self.print_on(stream, indent_increment=indent_increment)
+        return stream.getvalue()
 
     def print_on(self, io_stream, indent=0, indent_increment=4, newlines=True):
         self._print_open_tag_on(io_stream, indent, newlines)
@@ -97,7 +109,7 @@ class HTMLElement(AbstractHTMLWriter):
             return
         indent += indent_increment
         for child in self.children:
-            if isinstance(child, HTMLElement):
+            if isinstance(child, AbstractHTMLWriter):
                 child.print_on(io_stream, indent, indent_increment)
             else:
                 io_stream.write(child.__str__())
@@ -113,6 +125,7 @@ class HTMLElement(AbstractHTMLWriter):
     @classmethod
     def img(cls, *args, **kwargs):
         return cls('img', is_self_closing=True, *args, **kwargs)
+
 
 class HTMLTextContent(AbstractHTMLWriter):
     def __init__(self, content):
