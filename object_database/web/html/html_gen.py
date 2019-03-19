@@ -36,7 +36,7 @@ class HTMLElement(AbstractHTMLWriter):
             self.children.append(child_element)
             child_element.parent = self
 
-    def add_children(list_of_children):
+    def add_children(self, list_of_children):
         self.children = self.children + list_of_children
 
     def add_class(self, cls_string):
@@ -93,6 +93,8 @@ class HTMLElement(AbstractHTMLWriter):
                     ' {}="{}"'.format(key, val))
 
     def _print_children_on(self, io_stream, indent=0, indent_increment=4):
+        if len(self.children) == 0:
+            return
         indent += indent_increment
         for child in self.children:
             if isinstance(child, HTMLElement):
