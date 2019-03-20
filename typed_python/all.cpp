@@ -22,6 +22,7 @@ compile the entire group all at once.
 #include "PyAlternativeInstance.cpp"
 #include "PyFunctionInstance.cpp"
 #include "PyBoundMethodInstance.cpp"
+#include "PyGilState.cpp"
 
 #include "AlternativeType.cpp"
 #include "BytesType.cpp"

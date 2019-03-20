@@ -14,7 +14,7 @@
 
 from object_database.messages import ClientToServer, ServerToClient
 from object_database.identity import IdentityProducer
-from object_database.schema import Schema, FieldDefinition, ObjectFieldId, ObjectId, FieldId, IndexId
+from object_database.schema import FieldDefinition, ObjectFieldId, IndexId
 from object_database.core_schema import core_schema
 from object_database.messages import SchemaDefinition
 from object_database.util import Timer
@@ -142,10 +142,10 @@ class Server:
         self._version_numbers = {}
         self._version_numbers_timestamps = {}
 
-        #_field_id to set(subscribed channel)
+        # _field_id to set(subscribed channel)
         self._field_id_to_channel = {}
 
-        #index-stringname to set(subscribed channel)
+        # index-stringname to set(subscribed channel)
         self._index_to_channel = Dict(IndexId, object)()
 
         # for each individually subscribed ID, a set of channels
@@ -231,7 +231,7 @@ class Server:
 
         if oldIds:
             self._kvstore.setSeveral(
-                {ObjectFieldId(objId=identity, fieldId=fieldId):None for identity in oldIds},
+                {ObjectFieldId(objId=identity, fieldId=fieldId): None for identity in oldIds},
                 {},
                 {exists_index: set(oldIds)}
             )
@@ -609,7 +609,7 @@ class Server:
                 # an object's identity cannot change, so we don't need to track our subscription to it
                 assert not isLazy
         else:
-            #this is a type-subscription
+            # this is a type-subscription
             for fieldname in connectedChannel.definedSchemas[schema][typename].fields:
                 fieldId = self._currentTypeMap().fieldIdFor(schema, typename, fieldname)
                 if fieldId not in self._field_id_to_channel:
@@ -645,10 +645,10 @@ class Server:
 
         for typename, typedef in definition.items():
             for fieldname in typedef.fields:
-                fieldId = currentTypes.lookupOrAdd(name,typename,fieldname)
+                fieldId = currentTypes.lookupOrAdd(name, typename, fieldname)
                 result[makeNamedTuple(schema=name, typename=typename, fieldname=fieldname)] = fieldId
             for indexname in typedef.indices:
-                fieldId = currentTypes.lookupOrAdd(name,typename,indexname)
+                fieldId = currentTypes.lookupOrAdd(name, typename, indexname)
                 result[makeNamedTuple(schema=name, typename=typename, fieldname=indexname)] = fieldId
 
         connectedChannel.channel.write(
@@ -679,7 +679,7 @@ class Server:
                 for key in transactionMessage.writes:
                     transactionMessage.writes[key]
 
-                    #if we write to a key we've already sent, we'll need to resend it
+                    # if we write to a key we've already sent, we'll need to resend it
                     identity = key.objId
 
                     if identity in identities:
@@ -693,7 +693,7 @@ class Server:
                     if schema_name == fieldDef.schema and typename == fieldDef.typename and (
                             fieldname_and_value is None and fieldDef.fieldname == " exists" or
                             fieldname_and_value is not None and tuple(fieldname_and_value) ==
-                                (fieldDef.fieldname, add_index_key.indexValue)):
+                            (fieldDef.fieldname, add_index_key.indexValue)):
                         identities_left_to_send.update(add_index_identities)
 
         while identities_left_to_send and (BATCH_SIZE is None or len(to_send) < BATCH_SIZE):
@@ -795,7 +795,7 @@ class Server:
             valueHash = indexKey.indexValue
 
             for ident in identities:
-                res[ObjectFieldId(fieldId=fieldId,objId=ident, isIndexValue=True)] = valueHash
+                res[ObjectFieldId(fieldId=fieldId, objId=ident, isIndexValue=True)] = valueHash
 
         return res
 
@@ -819,7 +819,12 @@ class Server:
         valsToGet = []
         for field_to_pull in typedef.fields:
             for ident in identities:
-                valsToGet.append(ObjectFieldId(objId=ident, fieldId=self._currentTypeMap().fieldIdFor(schema_name,typename,field_to_pull)))
+                valsToGet.append(
+                    ObjectFieldId(
+                        objId=ident,
+                        fieldId=self._currentTypeMap().fieldIdFor(schema_name, typename, field_to_pull)
+                    )
+                )
 
         results = self._kvstore.getSeveral(valsToGet)
 
@@ -847,7 +852,7 @@ class Server:
             fieldId = self._currentTypeMap().fieldIdFor(fieldDef.schema, fieldDef.typename, index_name)
 
             for ident in newIds:
-                fieldval = reverseKVMap.get(ObjectFieldId(fieldId=fieldId,objId=ident))
+                fieldval = reverseKVMap.get(ObjectFieldId(fieldId=fieldId, objId=ident))
 
                 if fieldval is not None:
                     ik = IndexId(fieldId=fieldId, indexValue=fieldval)
@@ -1031,11 +1036,11 @@ class Server:
         channelsTriggered = set()
 
         for fieldId in fieldIdsWriting:
-            for channel in self._field_id_to_channel.get(fieldId,()):
+            for channel in self._field_id_to_channel.get(fieldId, ()):
                 if channel.subscribedFields[fieldId] >= 0:
-                    #this is a lazy subscription. We're not using the transaction ID yet because
-                    #we don't store it on a per-object basis here. Instead, we're always sending
-                    #everything twice to lazy subscribers.
+                    # this is a lazy subscription. We're not using the transaction ID yet because
+                    # we don't store it on a per-object basis here. Instead, we're always sending
+                    # everything twice to lazy subscribers.
                     channelsTriggeredForPriors.add(channel)
                 channelsTriggered.add(channel)
 

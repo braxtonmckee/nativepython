@@ -803,6 +803,23 @@ PyObject *deserialize(PyObject* nullValue, PyObject* args) {
     }
 }
 
+PyObject *isSimple(PyObject* nullValue, PyObject* args) {
+    if (PyTuple_Size(args) != 1) {
+        PyErr_SetString(PyExc_TypeError, "isSimple takes 1 positional argument");
+        return NULL;
+    }
+    PyObjectHolder a1(PyTuple_GetItem(args, 0));
+
+    Type* t = PyInstance::unwrapTypeArgToTypePtr(a1);
+
+    if (!t) {
+        PyErr_SetString(PyExc_TypeError, "first argument to 'isSimple' must be a native type object");
+        return NULL;
+    }
+
+    return incref(t->isSimple() ? Py_True : Py_False);
+}
+
 PyObject *is_default_constructible(PyObject* nullValue, PyObject* args) {
     if (PyTuple_Size(args) != 1) {
         PyErr_SetString(PyExc_TypeError, "is_default_constructible takes 1 positional argument");
@@ -1082,6 +1099,7 @@ static PyMethodDef module_methods[] = {
     {"serialize", (PyCFunction)serialize, METH_VARARGS, NULL},
     {"deserialize", (PyCFunction)deserialize, METH_VARARGS, NULL},
     {"is_default_constructible", (PyCFunction)is_default_constructible, METH_VARARGS, NULL},
+    {"isSimple", (PyCFunction)isSimple, METH_VARARGS, NULL},
     {"bytecount", (PyCFunction)bytecount, METH_VARARGS, NULL},
     {"isBinaryCompatible", (PyCFunction)isBinaryCompatible, METH_VARARGS, NULL},
     {"resolveForwards", (PyCFunction)resolveForwards, METH_VARARGS, NULL},

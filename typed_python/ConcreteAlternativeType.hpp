@@ -12,6 +12,7 @@ public:
             m_alternative(m_alternative),
             m_which(which)
     {
+        m_is_simple = false;
         forwardTypesMayHaveChanged();
     }
 

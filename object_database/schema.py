@@ -25,7 +25,7 @@ IndexId = NamedTuple(fieldId=int, indexValue=bytes)
 TypeDefinition = NamedTuple(fields=TupleOf(str), indices=TupleOf(str))
 SchemaDefinition = ConstDict(str, TypeDefinition)
 
-FieldDefinition = NamedTuple(schema=str,typename=str,fieldname=str)
+FieldDefinition = NamedTuple(schema=str, typename=str, fieldname=str)
 
 
 def SubscribeLazilyByDefault(t):

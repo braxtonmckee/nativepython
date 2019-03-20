@@ -19,7 +19,6 @@ This is the primary unit-test entrypoint for nativepython.
 
 """
 import sys
-import shutil
 import logging
 import unittest
 import os
@@ -101,6 +100,14 @@ class PythonTestArgumentParser(argparse.ArgumentParser):
             default=False,
             required=False,
             help="run test harness verbosely"
+        )
+        self.add_argument(
+            '--failure_to_std_out',
+            dest='dumpFailureLogsToStdOut',
+            action='store_true',
+            default=False,
+            required=False,
+            help="Don't dump failure data to logs - send it to standard out."
         )
         self.add_argument(
             '--dump_native',
@@ -291,6 +298,7 @@ class OutputCapturePlugin(nose.plugins.base.Plugin):
         self.outfile = None
         self.testStartTime = None
         self.nocaptureall = False
+        self.dumpFailureLogsToStdOut = False
 
     def options(self, parser, env):
         """Register commandline options
@@ -299,6 +307,10 @@ class OutputCapturePlugin(nose.plugins.base.Plugin):
             "--nocaptureall", action="store_true",
             default=False, dest="nocaptureall"
         )
+        parser.add_option(
+            '--dumpFailureLogsToStdOut', action='store_true',
+            default=False, dest='dumpFailureLogsToStdOut'
+        )
 
     def configure(self, options, conf):
         """Configure plugin. Plugin is enabled by default.
@@ -306,6 +318,8 @@ class OutputCapturePlugin(nose.plugins.base.Plugin):
         self.conf = conf
         if options.nocaptureall:
             self.nocaptureall = True
+        if options.dumpFailureLogsToStdOut:
+            self.dumpFailureLogsToStdOut = True
 
     def afterTest(self, test):
         """Clear capture buffer.
@@ -409,6 +423,15 @@ class OutputCapturePlugin(nose.plugins.base.Plugin):
         return self.formatError(test, err)
 
     def addCaptureToErr(self, ev, tb):
+        if self.dumpFailureLogsToStdOut:
+            self.outfile.flush()
+            with open(self.fname, "r") as fileContents:
+                return ''.join([str(ev) + "\n"] + traceback.format_tb(tb) + [
+                    '\n>> output captured in %s:' % self.fname,
+                    "\n\n",
+                    fileContents.read()
+                ])
+
         return ''.join([str(ev) + "\n"] + traceback.format_tb(tb) + ['\n>> output captured in %s <<' % self.fname])
 
     def end(self):
@@ -428,6 +451,9 @@ def runPythonUnitTests(args, filterActions, modules):
 
     if args.testHarnessVerbose or args.list:
         testArgs.append('--nocapture')
+
+    if args.dumpFailureLogsToStdOut:
+        testArgs.append('--dumpFailureLogsToStdOut')
 
     testArgs.append('--verbosity=0')
 
@@ -523,6 +549,7 @@ def buildModule(args):
 
     print(". Finished in %.2f seconds" % (time.time() - t0))
     print()
+
 
 def main(args):
     global logger

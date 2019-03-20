@@ -12,6 +12,17 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
+# flake8: noqa
+
+# ensure typed_python is imported because our extension needs it
+import typed_python._types
+import ctypes
+
+# make sure that 'typed_python' is loaded with global symbol resolution
+ctypes.CDLL(typed_python._types.__file__, mode=ctypes.RTLD_GLOBAL)
+
+import object_database._types
+
 from object_database.tcp_server import connect, TcpServer
 from object_database.persistence import RedisPersistence, InMemoryPersistence
 from object_database.schema import Schema, Indexed, Index, SubscribeLazilyByDefault

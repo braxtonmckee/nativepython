@@ -1676,3 +1676,51 @@ class NativeTypesTests(unittest.TestCase):
         self.assertEqual(list(d), [10, 1, 2])
         del d[1]
         self.assertEqual(list(d), [10, 2])
+
+    def test_simplicity(self):
+        isSimple = _types.isSimple
+
+        self.assertTrue(isSimple(int))
+        self.assertTrue(isSimple(Int32()))
+        self.assertTrue(isSimple(Int16()))
+        self.assertTrue(isSimple(Int8()))
+        self.assertTrue(isSimple(UInt64()))
+        self.assertTrue(isSimple(UInt32()))
+        self.assertTrue(isSimple(UInt16()))
+        self.assertTrue(isSimple(UInt8()))
+        self.assertTrue(isSimple(str))
+        self.assertTrue(isSimple(bytes))
+        self.assertTrue(isSimple(bool))
+        self.assertTrue(isSimple(float))
+
+        class C(Class):
+            pass
+
+        self.assertFalse(isSimple(C))
+
+        self.assertTrue(isSimple(ListOf(int)))
+        self.assertFalse(isSimple(ListOf(C)))
+
+        self.assertTrue(isSimple(TupleOf(int)))
+        self.assertFalse(isSimple(TupleOf(C)))
+
+        self.assertTrue(isSimple(ConstDict(int, int)))
+        self.assertFalse(isSimple(ConstDict(C, int)))
+        self.assertFalse(isSimple(ConstDict(int, C)))
+
+        self.assertTrue(isSimple(Dict(int, int)))
+        self.assertFalse(isSimple(Dict(C, int)))
+        self.assertFalse(isSimple(Dict(int, C)))
+
+        self.assertFalse(isSimple(Alternative("Alternative")))
+
+        self.assertTrue(isSimple(NamedTuple(x=int)))
+        self.assertFalse(isSimple(NamedTuple(x=C)))
+
+        X = lambda: X
+        X = Alternative("X", X={'x': X}, Y={'i': int})
+        self.assertFalse(isSimple(X))
+        self.assertFalse(isSimple(NamedTuple(x=X)))
+
+        self.assertFalse(isSimple(OneOf(int, X)))
+        self.assertTrue(isSimple(OneOf(int, float)))

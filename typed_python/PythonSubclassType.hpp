@@ -10,6 +10,7 @@ public:
         m_base = base;
         mTypeRep = typePtr;
         m_name = typePtr->tp_name;
+        m_is_simple = false;
 
         forwardTypesMayHaveChanged();
     }

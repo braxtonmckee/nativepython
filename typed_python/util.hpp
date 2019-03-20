@@ -130,3 +130,54 @@ inline bool cmpResultToBoolForPyOrdering(int pyComparisonOp, char cmpResult) {
 
     throw std::logic_error("Invalid pyComparisonOp");
 }
+
+/******
+Call 'f', which must return PyObject*, in a block that guards against
+exceptions returning nakedly to the python interpreter. This is meant
+to guard the barrier between Python C callbacks and our internals which
+may use exceptions.
+******/
+template<class func_type>
+PyObject* translateExceptionToPyObject(func_type f) {
+    try {
+        return f();
+    } catch(PythonExceptionSet& e) {
+        return nullptr;
+    } catch(std::exception& e) {
+        PyErr_SetString(PyExc_TypeError, e.what());
+        return nullptr;
+    }
+}
+
+/********
+Iterate over 'o' calling 'f' with each PyObject encountered.
+
+May throw, so use in conjunction with 'translateExceptionToPyObject'
+********/
+template<class func_type>
+void iterate(PyObject* o, func_type f) {
+    PyObject *iterator = PyObject_GetIter(o);
+    PyObject *item;
+
+    if (iterator == NULL) {
+        throw PythonExceptionSet();
+    }
+
+    while ((item = PyIter_Next(iterator))) {
+        try {
+            f(item);
+            Py_DECREF(item);
+        } catch(...) {
+            Py_DECREF(item);
+            Py_DECREF(iterator);
+            throw;
+        }
+    }
+
+    Py_DECREF(iterator);
+
+    if (PyErr_Occurred()) {
+        throw PythonExceptionSet();
+    }
+}
+

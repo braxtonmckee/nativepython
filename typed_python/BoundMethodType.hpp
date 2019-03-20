@@ -11,6 +11,8 @@ public:
         m_is_default_constructible = false;
         m_first_arg = inFirstArg;
         m_size = inFirstArg->bytecount();
+        m_is_simple = false;
+
         forwardTypesMayHaveChanged();
     }
 

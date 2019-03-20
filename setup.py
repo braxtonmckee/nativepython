@@ -30,6 +30,7 @@ class NumpyBuildExtension(build_ext):
             pkg_resources.resource_filename('numpy', 'core/include'))
         build_ext.run(self)
 
+
 extra_compile_args = [
     '-O2',
     '-fstack-protector-strong',

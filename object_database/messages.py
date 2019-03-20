@@ -1,5 +1,5 @@
 from typed_python import OneOf, Alternative, ConstDict, TupleOf, Tuple
-from object_database.schema import SchemaDefinition, ObjectId, ObjectFieldId, FieldId, IndexId, FieldDefinition
+from object_database.schema import SchemaDefinition, ObjectId, ObjectFieldId, IndexId, FieldDefinition
 
 _heartbeatInterval = [5.0]
 
@@ -32,7 +32,7 @@ ClientToServer = Alternative(
     Subscribe={
         'schema': str,
         'typename': OneOf(None, str),
-        'fieldname_and_value': OneOf(None, Tuple(str,bytes)),
+        'fieldname_and_value': OneOf(None, Tuple(str, bytes)),
         'isLazy': bool  # load values when we first request them, instead of blocking on all the data.
     },
     Flush={'guid': int},
@@ -49,7 +49,7 @@ ServerToClient = Alternative(
     SubscriptionData={
         'schema': str,
         'typename': OneOf(None, str),
-        'fieldname_and_value': OneOf(None, Tuple(str,bytes)),
+        'fieldname_and_value': OneOf(None, Tuple(str, bytes)),
         'values': ConstDict(ObjectFieldId, OneOf(None, bytes)),  # value
         'index_values': ConstDict(ObjectFieldId, OneOf(None, bytes)),
         'identities': OneOf(None, TupleOf(ObjectId)),  # the identities in play if this is an index-level subscription

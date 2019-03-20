@@ -19,6 +19,7 @@ public:
         m_size = sizeof(layout*);
         m_is_default_constructible = inClass->is_default_constructible();
         m_name = m_heldClass->name();
+        m_is_simple = false;
 
         forwardTypesMayHaveChanged();
     }

@@ -2,29 +2,14 @@
 
 #include <Python.h>
 
-// thread-local counter for the currently released threadstate
-extern thread_local PyThreadState* curPyThreadState;
-
 //scoped object to ensure we're not holding the GIL. If we've
 //already released it, this is a no-op. Upon destruction, we
 //reacquire it.
 class PyEnsureGilReleased {
 public:
-    PyEnsureGilReleased() :
-        m_should_reaquire(false)
-    {
-        if (curPyThreadState == nullptr) {
-            curPyThreadState = PyEval_SaveThread();
-            m_should_reaquire = true;
-        }
-    }
+    PyEnsureGilReleased();
 
-    ~PyEnsureGilReleased() {
-        if (m_should_reaquire) {
-            PyEval_RestoreThread(curPyThreadState);
-            curPyThreadState = nullptr;
-        }
-    }
+    ~PyEnsureGilReleased();
 
 private:
     bool m_should_reaquire;
@@ -35,28 +20,12 @@ private:
 //if we already hold it, it should be a no-op
 class PyEnsureGilAcquired {
 public:
-    PyEnsureGilAcquired() :
-        m_should_rerelease(false)
-    {
-        if (curPyThreadState) {
-            PyEval_RestoreThread(curPyThreadState);
-            m_should_rerelease = true;
-            curPyThreadState = nullptr;
-        }
-    }
+    PyEnsureGilAcquired();
 
-    ~PyEnsureGilAcquired() {
-        if (m_should_rerelease) {
-            curPyThreadState = PyEval_SaveThread();
-        }
-    }
+    ~PyEnsureGilAcquired();
 
 private:
     bool m_should_rerelease;
 };
 
-inline void assertHoldingTheGil() {
-    if (curPyThreadState) {
-        throw std::runtime_error("We're not holding the gil!");
-    }
-}
+void assertHoldingTheGil();

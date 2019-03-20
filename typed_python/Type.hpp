@@ -392,6 +392,10 @@ public:
         return false;
     }
 
+    bool isSimple() const {
+        return m_is_simple;
+    }
+
 protected:
     Type(TypeCategory in_typeCategory) :
             m_typeCategory(in_typeCategory),
@@ -402,7 +406,8 @@ protected:
             m_base(nullptr),
             m_references_unresolved_forwards(false),
             m_checking_for_references_unresolved_forwards(false),
-            m_failed_resolution(false)
+            m_failed_resolution(false),
+            m_is_simple(true)
         {}
 
     TypeCategory m_typeCategory;
@@ -416,6 +421,11 @@ protected:
     PyTypeObject* mTypeRep;
 
     Type* m_base;
+
+    // 'simple' types are those that have no reference to the python interpreter
+    // and which therefore do not have a dependency on a codebase when being serialized
+    // or deserialized.
+    bool m_is_simple;
 
     bool m_references_unresolved_forwards;
 

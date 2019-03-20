@@ -30,23 +30,20 @@ class ObjectDatabaseFrontEnd(unittest.TestCase):
             server = subprocess.Popen([
                 sys.executable,
                 os.path.join(own_dir, "frontends", "database_server.py"),
-                "localhost", "8888",
+                "localhost", "8889",
                 "--service-token", token,
                 "--inmem"]
             )
 
-            time.sleep(.5)
+            time.sleep(2.5)
 
             client = subprocess.run([
                 sys.executable,
                 os.path.join(own_dir, "frontends", "database_throughput_test.py"),
-                "localhost", "8888",
+                "localhost", "8889",
                 "--service-token", token,
                 "1"
-            ],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
-            )
+            ])
 
             self.assertEqual(client.returncode, 0)
         finally:

@@ -22,6 +22,7 @@ public:
             m_hasComparisonOperators(false)
     {
         m_name = inName;
+        m_is_simple = false;
 
         if (m_memberFunctions.find("__eq__") != m_memberFunctions.end()) { m_hasComparisonOperators = true; }
         if (m_memberFunctions.find("__ne__") != m_memberFunctions.end()) { m_hasComparisonOperators = true; }

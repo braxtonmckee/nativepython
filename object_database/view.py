@@ -143,7 +143,7 @@ class View(object):
 
         fieldId = self._db._fields_to_field_ids.get(key)
 
-        return object_database.schema.IndexId(fieldId=fieldId,indexValue=index_value_to_hash(indexValue))
+        return object_database.schema.IndexId(fieldId=fieldId, indexValue=index_value_to_hash(indexValue))
 
     def _new(self, cls, args, kwds):
         if not self._writeable:
@@ -478,7 +478,7 @@ class View(object):
                     serializedBytes = serialize(val[0], val[1], self.serializationContext)
                     return SerializedDatabaseValue(
                         serializedBytes,
-                        {self.serializationContext:val[1]}
+                        {self.serializationContext: val[1]}
                     )
 
                 elif val is None:

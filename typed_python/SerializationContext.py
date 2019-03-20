@@ -54,11 +54,11 @@ _builtin_value_to_name = {id(v): k for k, v in _builtin_name_to_value.items()}
 
 class SerializationContext(object):
     """Represents a collection of types with well-specified names that we can use to serialize objects."""
-    def __init__(self, nameToObject=None, compressionEnabled=True, encodeLineInformationForCode=True):
+    def __init__(self, nameToObject=None, objToName=None, compressionEnabled=True, encodeLineInformationForCode=True):
         super().__init__()
 
         self.nameToObject = nameToObject or {}
-        self.objToName = {}
+        self.objToName = objToName
 
         for k in self.nameToObject:
             assert isinstance(k, str), (
@@ -71,10 +71,12 @@ class SerializationContext(object):
             .format(self.nameToObject[''])
         )
 
-        # take the lexically lowest name, so that we're not dependent on ordering.
-        for k, v in self.nameToObject.items():
-            if id(v) not in self.objToName or k < self.objToName[id(v)]:
-                self.objToName[id(v)] = k
+        if self.objToName is None:
+            # take the lexically lowest name, so that we're not dependent on ordering.
+            self.objToName = {}
+            for k, v in self.nameToObject.items():
+                if id(v) not in self.objToName or k < self.objToName[id(v)]:
+                    self.objToName[id(v)] = k
 
         self.compressionEnabled = compressionEnabled
         self.encodeLineInformationForCode = encodeLineInformationForCode
@@ -130,19 +132,19 @@ class SerializationContext(object):
 
     def withPrefix(self, prefix):
         return SerializationContext(
-            {prefix + "." + k: v for k, v  in self.nameToObject.items()},
+            {prefix + "." + k: v for k, v in self.nameToObject.items()},
             self.compressionEnabled,
             self.encodeLineInformationForCode
         )
 
     def withoutLineInfoEncoded(self):
-        return SerializationContext(self.nameToObject, self.compressionEnabled, False)
+        return SerializationContext(self.nameToObject, self.objToName, self.compressionEnabled, False)
 
     def withoutCompression(self):
-        return SerializationContext(self.nameToObject, False, self.encodeLineInformationForCode)
+        return SerializationContext(self.nameToObject, self.objToName, False, self.encodeLineInformationForCode)
 
     def withCompression(self):
-        return SerializationContext(self.nameToObject, True, self.encodeLineInformationForCode)
+        return SerializationContext(self.nameToObject, self.objToName, True, self.encodeLineInformationForCode)
 
     def nameForObject(self, t):
         ''' Return a name(string) for an input object t, or None if not found. '''

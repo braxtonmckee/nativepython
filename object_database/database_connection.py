@@ -12,17 +12,18 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-from object_database.schema import Schema, ObjectFieldId, IndexId, FieldDefinition
-from object_database.messages import ClientToServer, ServerToClient, SchemaDefinition, getHeartbeatInterval
+from object_database.schema import ObjectFieldId, IndexId, FieldDefinition, ObjectId
+from object_database.messages import ClientToServer, getHeartbeatInterval
 from object_database.core_schema import core_schema
 from object_database.view import View, Transaction, _cur_view, SerializedDatabaseValue
 from object_database.identity import IdentityProducer
 import object_database.keymapping as keymapping
+from object_database._types import VersionedIdSet
+
 from typed_python.SerializationContext import SerializationContext
 from typed_python.Codebase import Codebase as TypedPythonCodebase
-from typed_python import Alternative, Dict, OneOf
+from typed_python import Alternative, Dict, OneOf, TupleOf
 
-import queue
 import threading
 import logging
 import traceback
@@ -93,10 +94,10 @@ class VersionedValue(VersionedBase):
 
         return self.values[i]
 
-    def needsToTrack(self):
+    def wantsGuaranteedLowestIdMoveForward(self):
         return len(self.version_numbers) != 1 or self.values[0].serializedByteRep is None
 
-    def cleanup(self, version_number):
+    def moveGuaranteedLowestIdForward(self, version_number):
         if not self.values:
             return True
 
@@ -118,119 +119,27 @@ class VersionedValue(VersionedBase):
         return "VersionedValue(ids=%s)" % (self.version_numbers,)
 
 
-class VersionedSet(VersionedBase):
-    # values in sets are always strings
-    def __init__(self):
-        self.version_numbers = []
-        self.adds = []
-        self.removes = []
-
-    def setVersionedAddsAndRemoves(self, version, adds, removes):
-        assert not adds or not removes
-        assert adds or removes
-        assert isinstance(adds, set)
-        assert isinstance(removes, set)
-
-        if not self.version_numbers:
-            if removes:
-                adds = set(adds)
-                adds.difference_update(removes)
-                removes = set()
-
-        self.adds.append(adds)
-        self.removes.append(removes)
-        self.version_numbers.append(version)
-
-    def needsToTrack(self):
-        return len(self.version_numbers) != 1 or not (len(self.adds[0]) or len(self.removes[0]))
-
-    def updateVersionedAdds(self, version, adds):
-        if not self.version_numbers or self.version_numbers[-1] != version:
-            assert not self.version_numbers or self.version_numbers[-1] < version
-            self.setVersionedAddsAndRemoves(version, adds, set())
-        else:
-            # someone could be iterating over this set in another thread
-            new_last_adds = set(self.adds[-1])
-            new_last_adds.update(adds)
-            self.adds[-1] = new_last_adds
-
-    def cleanup(self, version_number):
-        if not self.version_numbers:
-            return True
-
-        while self.version_numbers and self.version_numbers[0] < version_number:
-            if len(self.version_numbers) == 1:
-                if not self.adds[0] and not self.removes[0]:
-                    # this value was deleted and we can just remove this whole entry
-                    return True
-                else:
-                    self.version_numbers[0] = version_number
-            else:
-                if self.version_numbers[1] <= version_number:
-                    # merge slot 0 into slot 1
-                    # the new set should have no removes, and only adds
-                    assert not self.removes[0], (self.adds[0], self.removes[0])
-
-                    new_set = set(self.adds[0])
-                    new_set.update(self.adds[1])
-                    new_set.difference_update(self.removes[1])
-
-                    self.adds.pop(0)
-                    self.removes.pop(0)
-                    self.version_numbers.pop(0)
-
-                    self.adds[0] = new_set
-                    self.removes[0] = set()
-                else:
-                    self.version_numbers[0] = version_number
-
-    def valueForVersion(self, version):
-        ix = self._best_version_offset_for(version)
-
-        if ix is None:
-            return SetWithEdits(set(), set(), set())
-
-        return SetWithEdits(set(), self.adds[:ix+1], self.removes[:ix+1])
-
-    def __repr__(self):
-        return "VersionedSet(ids=%s, adds=%s, removes=%s)" % (self.version_numbers, self.adds, self.removes)
-
-
-class SetWithEdits:
-    AGRESSIVELY_CHECK_SET_ADDS = False
-
-    def __init__(self, s, adds, removes):
-        self.s = s
-        self.adds = adds
-        self.removes = removes
+class FrozenIdSet:
+    def __init__(self, idSet, transactionId):
+        self.idSet = idSet
+        self.transactionId = transactionId
 
     def toSet(self):
-        res = set(self.s)
-        for i in range(len(self.adds)):
-            res.update(self.adds[i])
-            res.difference_update(self.removes[i])
-        return res
+        return set(self)
+
+    def __iter__(self):
+        if self.idSet is None:
+            return
+
+        o = self.idSet.lookupFirst(self.transactionId)
+        while o >= 0:
+            yield o
+            o = self.idSet.lookupNext(self.transactionId, o)
 
     def pickAny(self, toAvoid):
-        removed = set()
-
-        for i in reversed(range(len(self.adds))):
-            if SetWithEdits.AGRESSIVELY_CHECK_SET_ADDS:
-                adds = set(self.adds[i])
-
-            for a in self.adds[i]:
-                if a not in removed and a not in toAvoid:
-                    return a
-
-            if SetWithEdits.AGRESSIVELY_CHECK_SET_ADDS:
-                time.sleep(0.0001)
-                assert self.adds[i] == adds
-
-            removed.update(self.removes[i])
-
-        for a in self.s:
-            if a not in removed and a not in toAvoid:
-                return a
+        for objId in self:
+            if objId not in toAvoid:
+                return objId
 
 
 class ManyVersionedObjects:
@@ -243,7 +152,7 @@ class ManyVersionedObjects:
         # for each version number, the set of keys that are set with it
         self._version_number_objects = {}
 
-        # for each key, a VersionedValue or VersionedSet
+        # for each key, a VersionedValue or VersionedIdSet
         self._versioned_objects = {}
 
     def keycount(self):
@@ -278,9 +187,9 @@ class ManyVersionedObjects:
 
     def setForVersion(self, key, version_number):
         if key in self._versioned_objects:
-            return self._versioned_objects[key].valueForVersion(version_number)
+            return FrozenIdSet(self._versioned_objects[key], version_number)
 
-        return SetWithEdits(set(), set(), set())
+        return FrozenIdSet(None, version_number)
 
     def hasDataForKey(self, key):
         return key in self._versioned_objects
@@ -312,10 +221,10 @@ class ManyVersionedObjects:
         self._object_has_version(key, version_number)
 
         if key not in self._versioned_objects:
-            self._versioned_objects[key] = VersionedSet()
+            self._versioned_objects[key] = VersionedIdSet()
 
         if adds or removes:
-            self._versioned_objects[key].setVersionedAddsAndRemoves(version_number, adds, removes)
+            self._versioned_objects[key].addTransaction(version_number, adds, removes)
 
     def setVersionedTailValueStringified(self, key, serialized_val):
         if key not in self._versioned_objects:
@@ -327,13 +236,14 @@ class ManyVersionedObjects:
         self._object_has_version(key, version_number)
 
         if key not in self._versioned_objects:
-            self._versioned_objects[key] = VersionedSet()
-            self._versioned_objects[key].setVersionedAddsAndRemoves(version_number, adds, set())
+            self._versioned_objects[key] = VersionedIdSet()
+            self._versioned_objects[key].addTransaction(version_number, adds, TupleOf(ObjectId)())
         else:
-            self._versioned_objects[key].updateVersionedAdds(version_number, adds)
+            self._versioned_objects[key].addTransaction(version_number, adds, TupleOf(ObjectId)())
 
     def cleanup(self, curTransactionId):
         """Get rid of old objects we don't need to keep around and increase the min_transaction_id"""
+
         if self._min_reffed_version_number is not None:
             lowestId = min(self._min_reffed_version_number, curTransactionId)
         else:
@@ -346,10 +256,10 @@ class ManyVersionedObjects:
                 for key in self._version_number_objects[toCollapse]:
                     if key not in self._versioned_objects:
                         pass
-                    elif self._versioned_objects[key].cleanup(lowestId):
+                    elif self._versioned_objects[key].moveGuaranteedLowestIdForward(lowestId):
                         del self._versioned_objects[key]
                     else:
-                        if self._versioned_objects[key].needsToTrack():
+                        if self._versioned_objects[key].wantsGuaranteedLowestIdMoveForward():
                             self._object_has_version(key, lowestId)
 
                 del self._version_number_objects[toCollapse]
@@ -402,7 +312,7 @@ class DatabaseConnection:
         # otherwise, if we're subscribed, it's 'Everything'
         self._schema_and_typename_to_subscription_set = {}
 
-        # from (schema,typename,field_val) -> {'values', 'index_values', 'identities'}
+        # from (schema, typename, field_val) -> {'values', 'index_values', 'identities'}
         self._subscription_buildup = {}
 
         self._channel.setServerToClientHandler(self._onMessage)
@@ -494,7 +404,7 @@ class DatabaseConnection:
             self.addSchema(type(t).__schema__)
         self.subscribeMultiple([
             (type(t).__schema__.name, type(t).__qualname__, ("_identity", keymapping.index_value_to_hash(t._identity)), False)
-                for t in objects
+            for t in objects
         ])
 
     def _lazinessForType(self, typeObj, desiredLaziness):
@@ -676,7 +586,7 @@ class DatabaseConnection:
 
         fieldDef = self._field_id_to_field_def[fieldId]
 
-        subscriptionSet = self._schema_and_typename_to_subscription_set.get((fieldDef.schema,fieldDef.typename))
+        subscriptionSet = self._schema_and_typename_to_subscription_set.get((fieldDef.schema, fieldDef.typename))
 
         if subscriptionSet is Everything:
             return False
@@ -688,7 +598,7 @@ class DatabaseConnection:
     def _suppressIdentities(self, index_key, identities):
         fieldDef = self._field_id_to_field_def[index_key.fieldId]
 
-        subscriptionSet = self._schema_and_typename_to_subscription_set.get((fieldDef.schema,fieldDef.typename))
+        subscriptionSet = self._schema_and_typename_to_subscription_set.get((fieldDef.schema, fieldDef.typename))
 
         if subscriptionSet is Everything:
             return identities
@@ -828,12 +738,12 @@ class DatabaseConnection:
                     self._subscription_buildup[lookupTuple]['identities'].update(msg.identities)
         elif msg.matches.LazyTransactionPriors:
             with self._lock:
-                for k,v in msg.writes.items():
-                    self._versioned_data.setVersionedTailValueStringified(k,v)
+                for k, v in msg.writes.items():
+                    self._versioned_data.setVersionedTailValueStringified(k, v)
         elif msg.matches.LazyLoadResponse:
             with self._lock:
-                for k,v in msg.values.items():
-                    self._versioned_data.setVersionedTailValueStringified(k,v)
+                for k, v in msg.values.items():
+                    self._versioned_data.setVersionedTailValueStringified(k, v)
 
                 self._lazy_objects.pop(msg.identity, None)
 
@@ -967,7 +877,7 @@ class DatabaseConnection:
                 fieldId = iv.fieldId
                 identity = iv.objId
 
-                index_key = IndexId(fieldId=fieldId,indexValue=val)
+                index_key = IndexId(fieldId=fieldId, indexValue=val)
 
                 setAdds.setdefault(index_key, set()).add(identity)
 
@@ -1020,7 +930,7 @@ class DatabaseConnection:
                     FieldDefinition(schema=o.__schema__.name, typename=type(o).__qualname__, fieldname=" exists")
                 ]
 
-                objFieldId = ObjectFieldId(fieldId=fieldId,objId=o._identity)
+                objFieldId = ObjectFieldId(fieldId=fieldId, objId=o._identity)
 
                 if o._identity in self._lazy_objects and not self._versioned_data.hasDataForKey(objFieldId):
                     self._loadLazyObject(o._identity)
@@ -1060,7 +970,7 @@ class DatabaseConnection:
 
         out_writes = {}
 
-        for k,v in key_value.items():
+        for k, v in key_value.items():
             out_writes[k] = v.serializedByteRep
             if len(out_writes) > 10000:
                 self._channel.write(

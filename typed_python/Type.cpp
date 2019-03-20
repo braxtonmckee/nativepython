@@ -88,6 +88,10 @@ void Type::forwardTypesMayHaveChanged() {
     m_references_unresolved_forwards = false;
 
     visitReferencedTypes([&](Type* t) {
+        if (!t->isSimple()) {
+            m_is_simple = false;
+        }
+
         if (t->references_unresolved_forwards()) {
             m_references_unresolved_forwards = true;
         }

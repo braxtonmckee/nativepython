@@ -2,6 +2,7 @@
 
 #include "../typed_python/Type.hpp"
 #include "VersionedObjectsOfType.hpp"
+#include "VersionedIdSets.hpp"
 
 /*************
 

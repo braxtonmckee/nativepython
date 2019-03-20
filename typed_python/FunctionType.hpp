@@ -227,6 +227,7 @@ public:
         mOverloads(overloads)
     {
         m_name = inName;
+        m_is_simple = false;
         m_is_default_constructible = true;
         m_size = 0;
 

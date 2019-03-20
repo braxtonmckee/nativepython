@@ -24,6 +24,7 @@ public:
             m_methods(methods)
     {
         m_name = name;
+        m_is_simple = false;
 
         if (m_subtypes.size() > 255) {
             throw std::runtime_error("Can't have an alternative with more than 255 subelements");

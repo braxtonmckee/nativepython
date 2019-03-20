@@ -18,7 +18,7 @@ from typed_python.SerializationContext import SerializationContext
 from object_database.schema import Indexed, Index, Schema
 from object_database.core_schema import core_schema
 from object_database.view import RevisionConflictException, DisconnectedException, ObjectDoesntExistException
-from object_database.database_connection import DatabaseConnection, SetWithEdits
+from object_database.database_connection import DatabaseConnection
 from object_database.tcp_server import TcpServer
 from object_database.inmem_server import InMemServer
 from object_database.persistence import InMemoryPersistence, RedisPersistence
@@ -30,7 +30,6 @@ import queue
 import unittest
 import tempfile
 import numpy
-import redis
 import subprocess
 import os
 import threading
@@ -326,7 +325,7 @@ class ObjectDatabaseTests:
             db.subscribeToSchema(schema)
             db.flush()
             db.disconnect()
-            assert currentMemUsageMb(residentOnly=False) < usage + 100
+            self.assertLess(currentMemUsageMb(residentOnly=False) - usage, 100)
 
     def test_disconnecting_is_immediate(self):
         db1 = self.createNewDb()
@@ -1538,10 +1537,17 @@ class ObjectDatabaseTests:
         db1.flush()
         db2.flush()
 
+        db1.cleanup()
+        db2.cleanup()
+
+        with db1.view():
+            assert len(schema.Root.lookupAll()) == 0
+
         with db2.view():
             assert len(schema.Root.lookupAll()) == 0
 
         self.assertLess(db1._versioned_data.keycount(), 10)
+
         self.assertEqual(db1._versioned_data.keycount(), db2._versioned_data.keycount())
 
         time.sleep(.1)
@@ -1573,7 +1579,7 @@ class ObjectDatabaseOverChannelTestsWithRedis(unittest.TestCase, ObjectDatabaseT
 
         try:
             self.redisProcess = subprocess.Popen(
-                [redis_path,'--port', '1115', '--logfile', os.path.join(self.tempDirName, "log.txt"),
+                [redis_path, '--port', '1115', '--logfile', os.path.join(self.tempDirName, "log.txt"),
                     "--dbfilename", "db.rdb", "--dir", os.path.join(self.tempDirName)]
             )
 
@@ -1679,54 +1685,46 @@ class ObjectDatabaseOverChannelTests(unittest.TestCase, ObjectDatabaseTests):
     def test_multithreading_and_cleanup(self):
         # Verify that if one thread is subscribing and the other is repeatedly looking
         # at indices, that everything works correctly.
+        db1 = self.createNewDb()
+        db1.subscribeToType(Counter)
 
-        try:
-            # inject some behavior to slow down the checks so we can see if we're
-            # failing this test.
-            SetWithEdits.AGRESSIVELY_CHECK_SET_ADDS_NOT_CHANGING = True
+        db2 = self.createNewDb()
+        db2.subscribeToType(Counter)
 
-            db1 = self.createNewDb()
-            db1.subscribeToType(Counter)
+        shouldStop = [False]
+        isOK = []
 
-            db2 = self.createNewDb()
-            db2.subscribeToType(Counter)
+        threadcount = 4
 
-            shouldStop = [False]
-            isOK = []
-
-            threadcount = 4
-
-            def readerthread(db):
-                c = None
-                while not shouldStop[0]:
-                    if numpy.random.uniform() < .5:
-                        if c is None:
-                            with db.transaction():
-                                c = Counter(k=0)
-                        else:
-                            with db.transaction():
-                                c.delete()
-                                c = None
+        def readerthread(db):
+            c = None
+            while not shouldStop[0]:
+                if numpy.random.uniform() < .5:
+                    if c is None:
+                        with db.transaction():
+                            c = Counter(k=0)
                     else:
-                        with db.view():
-                            Counter.lookupAny(k=0)
+                        with db.transaction():
+                            c.delete()
+                            c = None
+                else:
+                    with db.view():
+                        Counter.lookupAny(k=0)
 
-                isOK.append(True)
+            isOK.append(True)
 
-            threads = [threading.Thread(target=readerthread, args=(db1 if threadcount % 2 else db2,)) for _ in range(threadcount)]
-            for t in threads:
-                t.start()
+        threads = [threading.Thread(target=readerthread, args=(db1 if threadcount % 2 else db2,)) for _ in range(threadcount)]
+        for t in threads:
+            t.start()
 
-            time.sleep(1.0)
+        time.sleep(1.0)
 
-            shouldStop[0] = True
+        shouldStop[0] = True
 
-            for t in threads:
-                t.join()
+        for t in threads:
+            t.join()
 
-            self.assertTrue(len(isOK) == threadcount)
-        finally:
-            SetWithEdits.AGRESSIVELY_CHECK_SET_ADDS_NOT_CHANGING = False
+        self.assertTrue(len(isOK) == threadcount)
 
 
 class ObjectDatabaseOverSocketTests(unittest.TestCase, ObjectDatabaseTests):
