@@ -354,5 +354,15 @@ PyObject* PyConcreteAlternativeInstance::tp_call_concrete(PyObject* args, PyObje
             }
         }
     }
+
+    std::string argTupleTypeDesc = PyFunctionInstance::argTupleTypeDescription(args, kwargs);
+
+    PyErr_Format(
+        PyExc_TypeError, "'%s' cannot find a valid overload with arguments of type %s",
+        type()->name().c_str(),
+        argTupleTypeDesc.c_str()
+        );
+
+    return NULL;
 }
 

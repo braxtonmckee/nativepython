@@ -507,28 +507,11 @@ def hashSource(rootPath):
 
 
 def buildModule(args):
-    contentHash = hashSource(".")
-
-    if os.path.exists("./build/hash.txt"):
-        existing_hash = open("./build/hash.txt", "r").read().strip()
-
-        if contentHash == existing_hash:
-            print("Build and hash contents are the same. Skipping build.")
-            return
-
-    if os.path.exists('./build'):
-        shutil.rmtree("./build")
-
-    install_dir = os.path.abspath("./build/install")
-    os.makedirs(install_dir)
-
-    sys.path.append(install_dir)
-
     t0 = time.time()
-    print("Building nativepython...", end='')
+    print("Building nativepython using 'make lib'...", end='')
 
     result = subprocess.run(
-        [sys.executable, 'setup.py', 'clean', 'build'],
+        ['make', 'lib', '-j2'],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT
     )
@@ -538,24 +521,8 @@ def buildModule(args):
         print(str(result.stdout, 'utf-8'))
         return 1
 
-    result = subprocess.run(
-        [sys.executable, 'setup.py', 'develop', '--install-dir', './build/install'],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        env=dict(os.environ, PYTHONPATH=(os.environ.get('PYTHONPATH', '') + ":") + os.path.abspath("./build/install"))
-    )
-
-    if result.returncode != 0:
-        print("Develop install failed: ")
-        print(str(result.stdout, 'utf-8'))
-        return 1
-
     print(". Finished in %.2f seconds" % (time.time() - t0))
     print()
-
-    with open("./build/hash.txt", "w") as f:
-        f.write(contentHash)
-
 
 def main(args):
     global logger

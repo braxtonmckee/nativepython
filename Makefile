@@ -9,21 +9,21 @@ COMMIT ?= $(shell git rev-parse HEAD)
 # Path to virtual environment
 VIRTUAL_ENV ?= .venv
 
-SRC_PATH ?= typed_python
+TP_SRC_PATH ?= typed_python
+ODB_SRC_PATH ?= object_database
 
-BUILD_PATH ?= build/temp.linux-x86_64-3.6/typed_python
+TP_BUILD_PATH ?= build/temp.linux-x86_64-3.6/typed_python
+TP_LIB_PATH ?= build/lib.linux-x86_64-3.6/typed_python
 
-LIB_PATH ?= build/lib.linux-x86_64-3.6/typed_python
+ODB_BUILD_PATH ?= build/temp.linux-x86_64-3.6/object_database
+ODB_LIB_PATH ?= build/lib.linux-x86_64-3.6/object_database
 
-CPP_FLAGS = -pthread -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC -I/usr/include/python3.6m -I$(VIRTUAL_ENV)/include/python3.6m -std=c++14 -Wno-sign-compare -Wno-narrowing -Wno-unused-variable
+CPP_FLAGS = -pthread -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC -I/usr/include/python3.6m -I$(VIRTUAL_ENV)/include/python3.6m -std=c++14 -Wno-sign-compare -Wno-narrowing -Wno-unused-variable -Wno-int-in-bool-context
+CPP_FLAGS += -I/usr/local/lib/python3.6/dist-packages/numpy/core/include
 
-O_FILES = $(BUILD_PATH)/_types.o \
-          $(BUILD_PATH)/_runtime.o \
-          $(BUILD_PATH)/native_instance_wrapper.o \
-          $(BUILD_PATH)/Type.o \
-          $(BUILD_PATH)/PythonSerializationContext.o
-
-UNICODEPROPS = $(SRC_PATH)/UnicodeProps.hpp
+UNICODEPROPS = $(TP_SRC_PATH)/UnicodeProps.hpp
+TP_O_FILES = $(TP_BUILD_PATH)/all.o
+ODB_O_FILES = $(ODB_BUILD_PATH)/all.o
 
 ##########################################################################
 #  MAIN RULES
@@ -49,7 +49,7 @@ vlint: $(VIRTUAL_ENV)
 		make lint
 
 .PHONY: lib
-lib: typed_python/_types.cpython-36m-x86_64-linux-gnu.so
+lib: typed_python/_types.cpython-36m-x86_64-linux-gnu.so object_database/_types.cpython-36m-x86_64-linux-gnu.so
 
 .PHONY: docker-build
 docker-build:
@@ -83,6 +83,7 @@ clean:
 	rm -rf nativepython.egg-info/
 	rm -f nose.*.log
 	rm -f typed_python/_types.cpython-*.so
+	rm -f object_database/_types.cpython-*.so
 	rm -f testcert.cert testcert.key
 	rm -rf .venv
 
@@ -93,25 +94,39 @@ clean:
 $(VIRTUAL_ENV): $(PYTHON)
 	virtualenv $(VIRTUAL_ENV) --python=$(PYTHON)
 
-$(BUILD_PATH)/%.o: $(SRC_PATH)/%.cc
-	$(CC) $(CPP_FLAGS) -c $< -o $@
+$(TP_BUILD_PATH)/all.o: $(TP_SRC_PATH)/*.hpp $(TP_SRC_PATH)/*.cpp
+	$(CC) $(CPP_FLAGS) -c $(TP_SRC_PATH)/all.cpp $ -o $@
 
-$(BUILD_PATH)/%.o: $(SRC_PATH)/%.cpp
-	$(CXX) $(CPP_FLAGS) -c $< -o $@
+$(ODB_BUILD_PATH)/all.o: $(ODB_SRC_PATH)/*.hpp $(ODB_SRC_PATH)/*.cpp
+	$(CC) $(CPP_FLAGS) -c $(ODB_SRC_PATH)/all.cpp $ -o $@
 
-typed_python/_types.cpython-36m-x86_64-linux-gnu.so: $(LIB_PATH)/_types.cpython-36m-x86_64-linux-gnu.so
-	cp $(LIB_PATH)/_types.cpython-36m-x86_64-linux-gnu.so  typed_python
+typed_python/_types.cpython-36m-x86_64-linux-gnu.so: $(TP_LIB_PATH)/_types.cpython-36m-x86_64-linux-gnu.so
+	cp $(TP_LIB_PATH)/_types.cpython-36m-x86_64-linux-gnu.so  typed_python
 
-$(LIB_PATH)/_types.cpython-36m-x86_64-linux-gnu.so: $(LIB_PATH) $(BUILD_PATH) $(O_FILES)
+object_database/_types.cpython-36m-x86_64-linux-gnu.so: $(ODB_LIB_PATH)/_types.cpython-36m-x86_64-linux-gnu.so
+	cp $(ODB_LIB_PATH)/_types.cpython-36m-x86_64-linux-gnu.so  object_database
+
+$(TP_LIB_PATH)/_types.cpython-36m-x86_64-linux-gnu.so: $(TP_LIB_PATH) $(TP_BUILD_PATH) $(TP_O_FILES)
 	$(CXX) -pthread -shared -Wl,-O1 -Wl,-Bsymbolic-functions -Wl,-Bsymbolic-functions -Wl,-z,relro -Wl,-Bsymbolic-functions -Wl,-z,relro -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 \
-		$(O_FILES) \
-		-o $(LIB_PATH)/_types.cpython-36m-x86_64-linux-gnu.so
+		$(TP_O_FILES) \
+		-o $(TP_LIB_PATH)/_types.cpython-36m-x86_64-linux-gnu.so
 
-$(BUILD_PATH):
-	mkdir -p $(BUILD_PATH)
+$(ODB_LIB_PATH)/_types.cpython-36m-x86_64-linux-gnu.so: $(ODB_LIB_PATH) $(ODB_BUILD_PATH) $(ODB_O_FILES)
+	$(CXX) -pthread -shared -Wl,-O1 -Wl,-Bsymbolic-functions -Wl,-Bsymbolic-functions -Wl,-z,relro -Wl,-Bsymbolic-functions -Wl,-z,relro -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 \
+		$(ODB_O_FILES) \
+		-o $(ODB_LIB_PATH)/_types.cpython-36m-x86_64-linux-gnu.so
 
-$(LIB_PATH):
-	mkdir -p $(LIB_PATH)
+$(TP_BUILD_PATH):
+	mkdir -p $(TP_BUILD_PATH)
+
+$(ODB_BUILD_PATH):
+	mkdir -p $(ODB_BUILD_PATH)
+
+$(TP_LIB_PATH):
+	mkdir -p $(TP_LIB_PATH)
+
+$(ODB_LIB_PATH):
+	mkdir -p $(ODB_LIB_PATH)
 
 testcert.cert testcert.key:
 	openssl req -x509 -newkey rsa:2048 -keyout testcert.key -nodes \
