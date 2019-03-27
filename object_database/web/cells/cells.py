@@ -1221,11 +1221,10 @@ class LargePendingDownloadDisplay(Cell):
     def __init__(self):
         super().__init__()
 
-        self.contents = """
-            <div>
-                <span id="object_database_large_pending_download_text"></span>
-            </div>
-        """
+        self.contents = str(
+            HTMLElement.span()
+            set_attribute('id', 'object_database_large_pending_download_text')
+        )
 
 
 class HeaderBar(Cell):
@@ -1235,31 +1234,64 @@ class HeaderBar(Cell):
         self.centerItems = centerItems
         self.rightItems = rightItems
 
-        self.contents = """
-            <div class="p-2 bg-light flex-container" style="display:flex;align-items:baseline">
-                <div class="flex-item" style="flex-grow:0">
-                    <div class="flex-container" style="display:flex;justify-content:flex-center;align-items:baseline">
-                        %s
-                    </div>
-                </div>
-                <div class="flex-item" style="flex-grow:1">
-                    <div class="flex-container" style="display:flex;justify-content:center;align-items:baseline">
-                        %s
-                    </div>
-                </div>
-                <div class="flex-item" style="flex-grow:0">
-                    <div class="flex-container" style="display:flex;justify-content:flex-center;align-items:baseline">
-                        %s
-                    </div>
-                </div>
-            </div>
-        """ % (
-            "".join(["<span class='flex-item px-3'>____left_%s__</span>" %
-                     i for i in range(len(self.leftItems))]),
-            "".join(["<span class='flex-item px-3'>____center_%s__</span>" %
-                     i for i in range(len(self.centerItems))]),
-            "".join(["<span class='flex-item px-3'>____right_%s__</span>" %
-                     i for i in range(len(self.rightItems))]),
+        self.leftElements = [
+            HTMLElement.span()
+            .add_classes(['flex-item', 'px-3'])
+            .add_child(HTMLTextContent('____left_%s__' % i))
+            for i in range(len(self.leftItems))
+        ]
+        self.centerElements = [
+            HTMLElement.span()
+            .add_classes(['flex-item', 'px-3'])
+            .add_child(HTMLTextContent('____center_%s__' % i))
+            for i in range(len(self.centerItems))
+        ]
+        self.rightElements = [
+            HTMLElement.span()
+            .add_classes(['flex-item', 'px-3'])
+            .add_child(HTMLTextContent('____left_%s__' % i))
+            for i in range(len(self.rightItems))
+        ]
+
+        self.contents = str(
+            HTMLElement.div()
+            .add_classes(['p-2', 'bg-light', 'flex-container'])
+            .set_attribute('style', 'display:flex;align-items:baseline;')
+            .with_children(
+                # Left Elements
+                HTMLElement.div()
+                .add_class('flex-item')
+                .set_attribute('style', 'flex-grow:0;')
+                .add_child(
+                    HTMLElement.div()
+                    add_class('flex-container')
+                    .set_attribute('style',
+                                   'display:flex;justify-content:flex-center;align-items:baseline;')
+                    .add_children(self.leftElements)
+                ),
+                # Center Elements
+                HTMLElement.div()
+                add_class('flex-item')
+                .set_attribute('style', 'flex-grow:1;')
+                .add_child(
+                    HTMLElement.div()
+                    .add_class('flex-container')
+                    .set_attribute('style',
+                                   'display:flex;justify-content:center;align-items:baseline;')
+                    .add_children(self.centerElements)
+                ),
+                # Right Elements
+                HTMLElement.div()
+                .add_class('flex-item')
+                .set_attribute('style', 'flex-grow:0;')
+                .add_child(
+                    HTMLElement.div()
+                    .add_class('flex-container')
+                    .set_attribute('style',
+                                   'display:flex;justify-content:flex-center;align-items:baseline;')
+                    .add_children(self.rightElements)
+                )
+            )
         )
 
         self.children = {'____left_%s__' %
