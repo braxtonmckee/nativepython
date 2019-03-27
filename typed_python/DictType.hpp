@@ -468,6 +468,7 @@ public:
 
     instance_ptr lookupValueByKey(instance_ptr self, instance_ptr key) const;
 
+    // insert a new key, copy constructing 'key' but returning an uninitialized value pointer.
     instance_ptr insertKey(instance_ptr self, instance_ptr key) const;
 
     bool deleteKey(instance_ptr self, instance_ptr key) const;

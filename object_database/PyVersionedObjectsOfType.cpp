@@ -50,6 +50,29 @@ public:
         }
     }
 
+    static PyObject *markDeleted(PyVersionedObjectsOfType *self, PyObject* args, PyObject* kwargs)
+    {
+        static const char *kwlist[] = {"objectId", "versionId", NULL};
+        int64_t objectId;
+        int64_t versionId;
+
+        if (!PyArg_ParseTupleAndKeywords(args, kwargs, "ll", (char**)kwlist, &objectId, &versionId)) {
+            return nullptr;
+        }
+
+        try {
+            return incref(
+                self->objectsOfType->markDeleted(objectId, versionId) ?
+                    Py_True : Py_False
+                );
+        } catch(PythonExceptionSet& e) {
+            return NULL;
+        } catch(std::exception& e) {
+            PyErr_SetString(PyExc_TypeError, e.what());
+            return NULL;
+        }
+    }
+
     static PyObject *best(PyVersionedObjectsOfType *self, PyObject* args, PyObject* kwargs)
     {
         static const char *kwlist[] = {"objectId", "versionId", NULL};
@@ -62,27 +85,15 @@ public:
 
         auto instancePtrAndVersionPair = self->objectsOfType->best(objectId, versionId);
 
+        PyObjectStealer version(PyLong_FromLong(instancePtrAndVersionPair.second));
+
         if (!instancePtrAndVersionPair.first) {
-            return incref(Py_None);
+            return PyTuple_Pack(3, Py_False, Py_None, (PyObject*)version);
         }
 
         PyObjectStealer ref(PyInstance::extractPythonObject(instancePtrAndVersionPair.first, self->objectsOfType->getType()));
-        PyObjectStealer version(PyLong_FromLong(instancePtrAndVersionPair.second));
 
-        return PyTuple_Pack(2, (PyObject*)ref, (PyObject*)version);
-    }
-
-    static PyObject *remove(PyVersionedObjectsOfType *self, PyObject* args, PyObject* kwargs)
-    {
-        static const char *kwlist[] = {"objectId", "versionId", NULL};
-        int64_t objectId;
-        int64_t versionId;
-
-        if (!PyArg_ParseTupleAndKeywords(args, kwargs, "ll", (char**)kwlist, &objectId, &versionId)) {
-            return nullptr;
-        }
-
-        return incref(self->objectsOfType->remove(objectId, versionId) ? Py_True:Py_False);
+        return PyTuple_Pack(3, Py_True, (PyObject*)ref, (PyObject*)version);
     }
 
     static PyObject *new_(PyTypeObject *type, PyObject *args, PyObject *kwds)
@@ -121,14 +132,31 @@ public:
 
         return 0;
     }
+
+    static PyObject* moveGuaranteedLowestIdForward(PyVersionedObjectsOfType* self, PyObject* args, PyObject* kwargs) {
+        static const char* kwlist[] = { "transaction_id", NULL };
+        int64_t transaction;
+
+        if (!PyArg_ParseTupleAndKeywords(args, kwargs, "l", (char**)kwlist, &transaction)) {
+            return nullptr;
+        }
+
+        return translateExceptionToPyObject([&]() {
+            self->objectsOfType->moveGuaranteedLowestIdForward(transaction);
+
+            return incref(
+                self->objectsOfType->empty() ?
+                    Py_True : Py_False
+                );
+        });
+    }
 };
 
 PyMethodDef PyVersionedObjectsOfType_methods[] = {
     {"add", (PyCFunction) PyVersionedObjectsOfType::add, METH_VARARGS | METH_KEYWORDS},
+    {"markDeleted", (PyCFunction) PyVersionedObjectsOfType::markDeleted, METH_VARARGS | METH_KEYWORDS},
     {"best", (PyCFunction) PyVersionedObjectsOfType::best, METH_VARARGS | METH_KEYWORDS},
-    {"remove", (PyCFunction) PyVersionedObjectsOfType::remove, METH_VARARGS | METH_KEYWORDS},
-    //{"remove", (PyCFunction) PyVersionedObjectsOfType::remove, METH_NOARGS},
-
+    {"moveGuaranteedLowestIdForward", (PyCFunction) PyVersionedObjectsOfType::moveGuaranteedLowestIdForward, METH_VARARGS | METH_KEYWORDS},
     {NULL}  /* Sentinel */
 };
 

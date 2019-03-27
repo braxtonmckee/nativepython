@@ -1,7 +1,7 @@
 #pragma once
 
 #include "DictInstance.hpp"
-
+#include "Common.hpp"
 /*************
 
 VersionedObjectsOfType stores a collection of TypedPython objects all of a single type,
@@ -20,30 +20,31 @@ nativepython can also read from them.
 *************/
 
 class VersionedObjectsOfType {
-    enum { NO_VERSION = -1 };
+    enum { NO_TRANSACTION = -1 };
 
     class VersionAndObjectData {
     public:
-        int64_t version;
+        transaction_id version;
+        transaction_id deletedAsOf;
         unsigned char object_data[];
     };
 
     class ObjectAndVersion {
     public:
-        ObjectAndVersion(int64_t objId, int64_t verId) :
+        ObjectAndVersion(object_id objId, transaction_id verId) :
                 objectId(objId),
                 version(verId)
         {
         }
 
-        int64_t objectId;
-        int64_t version;
+        object_id objectId;
+        transaction_id version;
     };
 
     class NextAndPrior {
     public:
-        int64_t nextId;
-        int64_t priorId;
+        object_id nextId;
+        object_id priorId;
     };
 
     class ObjectData {
@@ -54,7 +55,8 @@ class VersionedObjectsOfType {
 public:
     VersionedObjectsOfType(Type* type) :
             m_type(type),
-            m_top_objects(Int64::Make(), Tuple::Make(std::vector<Type*>({Int64::Make(), type}))),
+            m_guaranteed_lowest_id(NO_TRANSACTION),
+            m_top_objects(Int64::Make(), Tuple::Make(std::vector<Type*>({Int64::Make(), Int64::Make(), type}))),
             m_lowest_versions(Int64::Make(), Int64::Make()),
             m_next_and_prior(
                 Tuple::Make(std::vector<Type*>({Int64::Make(),Int64::Make()})),
@@ -64,134 +66,228 @@ public:
     {
     }
 
+    bool empty() const {
+        return m_top_objects.size() == 0;
+    }
+
+    transaction_id getGuaranteedLowestId() const {
+        return m_guaranteed_lowest_id;
+    }
+
+    void moveGuaranteedLowestIdForward(transaction_id t) {
+        if (t <= m_guaranteed_lowest_id) {
+            return;
+        }
+
+        m_guaranteed_lowest_id = t;
+
+        while (m_version_numbers_to_check.size() && m_version_numbers_to_check.begin()->first < t) {
+            // this is the ID we're consuming, which is the lowest id mentioned in the
+            // entire object.
+            transaction_id lowestId = m_version_numbers_to_check.begin()->first;
+
+            std::set<object_id> toCheck;
+            std::swap(toCheck, m_version_numbers_to_check.begin()->second);
+            m_version_numbers_to_check.erase(lowestId);
+
+            for (auto objectId: toCheck) {
+                removeLowestIfPossible(objectId);
+            }
+        }
+    }
+
     Type* getType() const {
         return m_type;
     }
 
-    std::pair<instance_ptr, int64_t> best(int64_t objectId, int64_t version) {
+    std::pair<instance_ptr, transaction_id> best(object_id objectId, transaction_id version) {
+        if (version < m_guaranteed_lowest_id) {
+            return std::pair<instance_ptr, transaction_id>(nullptr, NO_TRANSACTION);
+        }
+
         VersionAndObjectData* topObjectPtr = m_top_objects.lookupKey(objectId);
 
         if (!topObjectPtr) {
-            return std::pair<instance_ptr, int64_t>(nullptr, 0);
+            return std::pair<instance_ptr, transaction_id>(nullptr, NO_TRANSACTION);
+        }
+
+        // check if the object is deleted
+        if (topObjectPtr->deletedAsOf != NO_TRANSACTION && topObjectPtr->deletedAsOf <= version) {
+            return std::pair<instance_ptr, transaction_id>(nullptr, topObjectPtr->deletedAsOf);
         }
 
         if (topObjectPtr->version <= version) {
-            return std::pair<instance_ptr, int64_t>(topObjectPtr->object_data, topObjectPtr->version);
+            return std::pair<instance_ptr, transaction_id>(topObjectPtr->object_data, topObjectPtr->version);
         }
 
-        int64_t curVersion = topObjectPtr->version;
+        transaction_id curVersion = topObjectPtr->version;
 
         while (curVersion > version) {
             NextAndPrior* curNAP = m_next_and_prior.lookupKey(ObjectAndVersion(objectId, curVersion));
 
             if (!curNAP) {
-                return std::pair<instance_ptr, int64_t>(nullptr, 0);
+                return std::pair<instance_ptr, transaction_id>(nullptr, NO_TRANSACTION);
             }
 
             curVersion = curNAP->priorId;
         }
 
-        if (curVersion == NO_VERSION) {
-            return std::pair<instance_ptr, int64_t>(nullptr, 0);
+        if (curVersion == NO_TRANSACTION) {
+            return std::pair<instance_ptr, transaction_id>(nullptr, NO_TRANSACTION);
         }
 
-        return std::pair<instance_ptr, int64_t>(
+        return std::pair<instance_ptr, transaction_id>(
             m_data.lookupKey(ObjectAndVersion(objectId,curVersion))->object_data,
             curVersion
             );
     }
 
-    //remove a specific version from the set
-    bool remove(int64_t objectId, int64_t version) {
+    //consume any values in the object that are _lower_ than 'version'
+    void removeLowestIfPossible(object_id objectId) {
         VersionAndObjectData* topObjectPtr = m_top_objects.lookupKey(objectId);
 
+        if (!topObjectPtr) {
+            return;
+        }
+
+        if (topObjectPtr->deletedAsOf != NO_TRANSACTION && topObjectPtr->deletedAsOf <= m_guaranteed_lowest_id) {
+            removeObject(objectId);
+            return;
+        }
+
+        transaction_id* lowestIdPtr = m_lowest_versions.lookupKey(objectId);
+
+        if (!lowestIdPtr || *lowestIdPtr >= m_guaranteed_lowest_id) {
+            return;
+        }
+
+        transaction_id lowestId = *lowestIdPtr;
+
+        //check whether the _next_ value is also behind m_guaranteed_lowest_id. If so, we can delete this one
+        NextAndPrior* firstNAP = m_next_and_prior.lookupKey(ObjectAndVersion(objectId, lowestId));
+
+        // if the next object is above the guarantee, we need this version so we can fill in any requests
+        // that occur betwen m_guaranteed_lowest_id and next transaction
+        transaction_id nextId = firstNAP->nextId;
+
+        if (nextId > m_guaranteed_lowest_id) {
+            return;
+        }
+
+        *lowestIdPtr = nextId;
+
+        m_data.deleteKey(ObjectAndVersion(objectId, lowestId));
+
+        if (nextId == topObjectPtr->version) {
+            //we now only have a top object. so delete the pointer-links
+            m_next_and_prior.deleteKey(ObjectAndVersion(objectId, topObjectPtr->version));
+            m_next_and_prior.deleteKey(ObjectAndVersion(objectId, nextId));
+            m_lowest_versions.deleteKey(objectId);
+        } else {
+            NextAndPrior* nextNAP = m_next_and_prior.lookupKey(ObjectAndVersion(objectId, nextId));
+            nextNAP->priorId = NO_TRANSACTION;
+        }
+    }
+
+
+    //remove all traces of an object from the transaction stream
+    void removeObject(object_id objectId) {
+        VersionAndObjectData* topObjectPtr = m_top_objects.lookupKey(objectId);
+
+        if (!topObjectPtr) {
+            return;
+        }
+
+        dropObjAndVersion(objectId, topObjectPtr->version);
+        m_top_objects.deleteKey(objectId);
+
+        transaction_id* lowestTidPtr = m_lowest_versions.lookupKey(objectId);
+
+        if (!lowestTidPtr) {
+            return;
+        }
+
+        transaction_id lowestTid = *lowestTidPtr;
+        m_lowest_versions.deleteKey(objectId);
+
+        while (lowestTid != NO_TRANSACTION) {
+            dropObjAndVersion(objectId, lowestTid);
+            m_data.deleteKey(ObjectAndVersion(objectId, lowestTid));
+            NextAndPrior nap = *m_next_and_prior.lookupKey(ObjectAndVersion(objectId, lowestTid));
+            m_next_and_prior.deleteKey(ObjectAndVersion(objectId, lowestTid));
+
+            lowestTid = nap.nextId;
+        }
+    }
+
+    // mark an object 'deleted' as of a particular version number. once deleted,
+    // it can't come back. transactions coming it at or above it will fail.
+    bool markDeleted(object_id objectId, transaction_id version) {
+        if (version < m_guaranteed_lowest_id) {
+            return false;
+        }
+
+        VersionAndObjectData* topObjectPtr = m_top_objects.lookupKey(objectId);
+
+        // makes no sense to delete an object that doesn't exist
         if (!topObjectPtr) {
             return false;
         }
 
-        if (topObjectPtr->version == version) {
-            //see if a new top object exists
-            NextAndPrior* topNAP = m_next_and_prior.lookupKey(ObjectAndVersion(objectId, version));
-            if (topNAP) {
-                int64_t newTopVersion = topNAP->priorId;
-                m_next_and_prior.deleteKey(ObjectAndVersion(objectId, version));
-
-                //migrate this to the top object
-                ObjectData* data = m_data.lookupKey(ObjectAndVersion(objectId, newTopVersion));
-                m_type->swap(data->object_data, topObjectPtr->object_data);
-                topObjectPtr->version = newTopVersion;
-                m_data.deleteKey(ObjectAndVersion(objectId, newTopVersion));
-
-                //now update the pointer graph
-                NextAndPrior* newTopNAP = m_next_and_prior.lookupKey(ObjectAndVersion(objectId, newTopVersion));
-
-                if (newTopNAP->priorId == NO_VERSION) {
-                    //this was the last version
-                    m_next_and_prior.deleteKey(ObjectAndVersion(objectId, newTopVersion));
-                    m_lowest_versions.deleteKey(objectId);
-                } else {
-                    newTopNAP->nextId = NO_VERSION;
-                }
-            } else {
-                m_top_objects.deleteKey(objectId);
-            }
-
-            return true;
+        if (topObjectPtr->deletedAsOf != NO_TRANSACTION) {
+            // re-deleting is a no-op, anything else an error
+            return topObjectPtr->deletedAsOf == version;
         }
 
-        //we're not the top object. Are we in the data set?
-        ObjectData* data = m_data.lookupKey(ObjectAndVersion(objectId, version));
-        if (!data) {
+        // makes no sense to delete before the current version
+        if (topObjectPtr->version >= version) {
             return false;
         }
 
-        m_data.deleteKey(ObjectAndVersion(objectId, version));
+        topObjectPtr->deletedAsOf = version;
 
-        //update the pointer graph
-        NextAndPrior ourNAP = *m_next_and_prior.lookupKey(ObjectAndVersion(objectId, version));
-
-        //delete the entry. note we copy the object, not the pointer
-        m_next_and_prior.deleteKey(ObjectAndVersion(objectId, version));
-
-        if (ourNAP.nextId == topObjectPtr->version && ourNAP.priorId == NO_VERSION) {
-            //we now only have a top object. so delete the pointer-links
-            m_next_and_prior.deleteKey(ObjectAndVersion(objectId, topObjectPtr->version));
-            m_lowest_versions.deleteKey(objectId);
+        if (version < m_guaranteed_lowest_id) {
+            removeObject(objectId);
         } else {
-            m_next_and_prior.lookupKey(ObjectAndVersion(objectId, ourNAP.nextId))->priorId = ourNAP.priorId;
-
-            if (ourNAP.priorId == NO_VERSION) {
-                //we have no prior. Update the lowest-version
-                *m_lowest_versions.lookupKey(objectId) = ourNAP.nextId;
-            } else {
-                m_next_and_prior.lookupKey(ObjectAndVersion(objectId, ourNAP.priorId))->nextId = ourNAP.nextId;
-            }
+            m_version_numbers_to_check[version].insert(objectId);
         }
 
         return true;
     }
 
     /****
-    adds an object by id. If the object already exists, returns 'false'
-    and does nothing. Otherwise, add it and return 'true'.
+    adds an object by id. If the object already exists or an error occurs,
+    returns 'false' and does nothing. Otherwise, add it and return 'true'.
 
-    instance must point to the data for a valid instance of type 'm_type',
-    or else undefined (and bad) things will happen.
+    instance must point to the data for a valid instance of type 'm_type', or
+    else undefined (and bad) things will happen.
 
     The version number and object ids must be nonnegative.
     *****/
-    bool add(int64_t objectId, int64_t version, instance_ptr instance) {
+    bool add(object_id objectId, object_id version, instance_ptr instance) {
+        if (version < m_guaranteed_lowest_id) {
+            return false;
+        }
+
         //the proper lookup key in the object/version table.
         ObjectAndVersion objIdAndVersion(objectId, version);
 
         VersionAndObjectData* topObjectPtr = m_top_objects.lookupKey(objectId);
 
         if (!topObjectPtr) {
-            //this is completely new
+            //this is a completely new object
             topObjectPtr = m_top_objects.insertKey(objectId);
             topObjectPtr->version = version;
+            topObjectPtr->deletedAsOf = NO_TRANSACTION;
             m_type->copy_constructor(topObjectPtr->object_data, instance);
+            m_version_numbers_to_check[version].insert(objectId);
             return true;
+        }
+
+        if (topObjectPtr->deletedAsOf != NO_TRANSACTION &&
+                            topObjectPtr->deletedAsOf <= version)  {
+            // an error to add data above the deleted version.
+            return false;
         }
 
         ObjectAndVersion topObject(objectId, topObjectPtr->version);
@@ -206,13 +302,16 @@ public:
             //move the top object into the backstack
             ObjectData* interior = m_data.insertKey(topObject);
 
+            //the value at this transaction_it is now "non-top"
+            registerObjectAndVersion(objectId, topObjectPtr->version);
+
             m_type->swap(interior->object_data, topObjectPtr->object_data);
             m_type->copy_constructor(topObjectPtr->object_data, instance);
             topObjectPtr->version = version;
 
             //insert a link for the new top object
             NextAndPrior* insertedNAP = m_next_and_prior.insertKey(objIdAndVersion);
-            insertedNAP->nextId = NO_VERSION;
+            insertedNAP->nextId = NO_TRANSACTION;
             insertedNAP->priorId = topObject.version;
 
             //see if we already had a prior
@@ -227,9 +326,11 @@ public:
                 *m_lowest_versions.lookupOrInsert(objectId) = topObject.version;
 
                 oldTopNAP = m_next_and_prior.insertKey(topObject);
-                oldTopNAP->priorId = NO_VERSION;
+                oldTopNAP->priorId = NO_TRANSACTION;
                 oldTopNAP->nextId = version;
             }
+
+            m_version_numbers_to_check[version].insert(objectId);
 
             return true;
         }
@@ -243,22 +344,27 @@ public:
         ObjectData* interior = m_data.insertKey(objIdAndVersion);
         m_type->copy_constructor(interior->object_data, instance);
 
+        //this value is nontop
+        registerObjectAndVersion(objectId, version);
+
         //update the interior version chains
-        int64_t* lowestVersion = m_lowest_versions.lookupKey(objectId);
+        transaction_id* lowestVersion = m_lowest_versions.lookupKey(objectId);
 
         //this is an interior insertion
         if (!lowestVersion) {
             //add both links
             NextAndPrior* curTopNAP = m_next_and_prior.insertKey(topObject);
-            curTopNAP->nextId = NO_VERSION;
+            curTopNAP->nextId = NO_TRANSACTION;
             curTopNAP->priorId = version;
 
             NextAndPrior* curInteriorNAP = m_next_and_prior.insertKey(objIdAndVersion);
             curInteriorNAP->nextId = topObject.version;
-            curInteriorNAP->priorId = NO_VERSION;
+            curInteriorNAP->priorId = NO_TRANSACTION;
 
             //update the lowest version
             *m_lowest_versions.insertKey(objectId) = objIdAndVersion.version;
+
+            m_version_numbers_to_check[version].insert(objectId);
 
             return true;
         }
@@ -271,16 +377,18 @@ public:
             //insert ourselves
             NextAndPrior* curInteriorNAP = m_next_and_prior.insertKey(objIdAndVersion);
             curInteriorNAP->nextId = *lowestVersion;
-            curInteriorNAP->priorId = NO_VERSION;
+            curInteriorNAP->priorId = NO_TRANSACTION;
 
             //update the bottom pointer
             *lowestVersion = version;
+
+            m_version_numbers_to_check[version].insert(objectId);
 
             return true;
         }
 
         //this is in the interior
-        int64_t curVersion = topObject.version;
+        transaction_id curVersion = topObject.version;
         NextAndPrior* curNAP = m_next_and_prior.lookupKey(ObjectAndVersion(objectId, curVersion));
 
         while (curNAP->priorId > version) {
@@ -288,7 +396,7 @@ public:
             curNAP = m_next_and_prior.lookupKey(ObjectAndVersion(objectId, curVersion));
         }
 
-        int64_t priorVersion = curNAP->priorId;
+        transaction_id priorVersion = curNAP->priorId;
 
         NextAndPrior* curInteriorNAP = m_next_and_prior.insertKey(objIdAndVersion);
 
@@ -303,18 +411,42 @@ public:
         curNAP->priorId = version;
         priorNAP->nextId = version;
 
+        m_version_numbers_to_check[version].insert(objectId);
+
         return true;
     }
 
+    void dropObjAndVersion(object_id oid, transaction_id tid) {
+        m_version_numbers_to_check[tid].erase(oid);
+        if (m_version_numbers_to_check[tid].size() == 0) {
+            m_version_numbers_to_check.erase(tid);
+        }
+    }
+
+    void registerObjectAndVersion(object_id oid, transaction_id tid) {
+        m_version_numbers_to_check[tid].insert(oid);
+    }
 
 private:
     Type* m_type;   //the actual type of the objects we contain
 
-    DictInstance<int64_t, VersionAndObjectData> m_top_objects;
+    transaction_id m_guaranteed_lowest_id; //the lowest transaction anyone will ever ask us about
 
-    DictInstance<int64_t, int64_t> m_lowest_versions;
+    //primary datastructure - populated for all objects we know. The transaction_ids in here
+    //may be lower than the m_guaranteed_lowest_id - we only roll them forward when we need to.
+    DictInstance<object_id, VersionAndObjectData> m_top_objects;
 
+    //for all objects with multiple versions, the lowest
+    DictInstance<object_id, transaction_id> m_lowest_versions;
+
+    //for all objects with multiple versions, at each version,
+    //the next and prior version number
     DictInstance<ObjectAndVersion, NextAndPrior> m_next_and_prior;
 
+    //for all non-top object versions, the object data
     DictInstance<ObjectAndVersion, ObjectData> m_data;
+
+    //for each transaction, a list of objects we want to check when that version number
+    //gets consumed by the m_guaranteed_lowest_id, in case we want to delete things.
+    std::map<transaction_id, std::set<object_id> > m_version_numbers_to_check;
 };

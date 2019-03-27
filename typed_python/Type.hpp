@@ -152,7 +152,11 @@ public:
         });
     }
 
+    // swap the contents of 'left' and 'right'.  The values should be valid.
     void swap(instance_ptr left, instance_ptr right);
+
+    // initialize 'dest' from 'src', and destroy 'src'.
+    void move(instance_ptr dest, instance_ptr src);
 
     static char byteCompare(uint8_t* l, uint8_t* r, size_t count);
 
@@ -404,10 +408,10 @@ protected:
             m_name("Undefined"),
             mTypeRep(nullptr),
             m_base(nullptr),
+            m_is_simple(true),
             m_references_unresolved_forwards(false),
             m_checking_for_references_unresolved_forwards(false),
-            m_failed_resolution(false),
-            m_is_simple(true)
+            m_failed_resolution(false)
         {}
 
     TypeCategory m_typeCategory;

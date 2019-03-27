@@ -24,6 +24,11 @@ int32_t Type::hash32(instance_ptr left) {
     });
 }
 
+void Type::move(instance_ptr dest, instance_ptr src) {
+    //right now, this is legal because we have no self references.
+    swap(dest, src);
+}
+
 void Type::swap(instance_ptr left, instance_ptr right) {
     assertForwardsResolved();
 
