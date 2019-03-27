@@ -1630,7 +1630,11 @@ class Subscribed(Cell):
 
     def recalculate(self):
         with self.view() as v:
-            self.contents = """<div %s>____contents__</div>""" % self._divStyle()
+            self.contents = str(
+                HTMLElement.div()
+                .set_attribute('style', self._divStyle())
+                .add_child(HTMLTextContent('____contents__'))
+            )
             try:
                 c = Cell.makeCell(self.f())
                 if c.cells is not None:
@@ -1706,27 +1710,30 @@ class SubscribedSequence(Cell):
                 del self.existingItems[i]
 
         if self.asColumns:
-            self.contents = (
-                """
-                <div class="container-fluid" __style__>
-                <div class="row flex-nowrap">
-                    __contents__
-                </div>
-                </div>
-                """
-                .replace("__style__", self._divStyle())
-                .replace(
-                    "__contents__",
-                    "\n".join(
-                        f"""<div class="col-sm"> ____child_{i}__ </div>"""
-                        for i in range(len(self.spine)))
+            spineChildren = []
+            for i in range(len(self.spine)):
+                spineChildren.append(
+                    HTMLElement.div()
+                    .add_class('col-sm')
+                    .add_child(HTMLTextContent('____child_%s__' % str(i)))
+                )
+            self.contents = str(
+                HTMLElement.div()
+                .add_class('container-fluid')
+                .set_attribute('style', self._divStyle())
+                .add_child(
+                    HTMLElement.div()
+                    .add_classes(['row', 'flex-nowrap'])
+                    .add_children(spineChildren)
                 )
             )
         else:
-            self.contents = """<div %s>%s</div>""" % (
-                self._divStyle(),
-                "\n".join(['____child_%s__' %
-                           i for i in range(len(self.spine))])
+            spineChildren = "\n".join(['____child_%s__' %
+                                       i for i in range(len(self.spine))])
+            self.contents = str(
+                HTMLElement.div()
+                .set_attribute('style', self._divStyle)
+                .add_child(HTMLTextContent(spineChildren))
             )
 
 
