@@ -702,7 +702,8 @@ class Cell:
 
         for child in self.children:
             cells.extend(
-                self.children[child].findChildrenByTag(tag, stopSearchingAtFoundTag)
+                self.children[child].findChildrenByTag(
+                    tag, stopSearchingAtFoundTag)
             )
 
         return cells
@@ -1131,6 +1132,7 @@ class Padding(Cell):
             .add_class('px-2')
             .add_child(HTMLTextContent('&nbsp'))
         )
+
     def sortsAs(self):
         return " "
 
@@ -1328,17 +1330,22 @@ class _NavTab(Cell):
         self.child = child
 
     def recalculate(self):
-        self.contents = ("""
-            <li class="nav-item">
-                <a class="nav-link __active__" role="tab"
-                    onclick="websocket.send(JSON.stringify({'event':'click', 'ix': __ix__, 'target_cell': '__identity__'}))"
-                    >
-                    ____child__
-                </a>
-            </li>
-            """.replace("__identity__", self.target)
-               .replace("__ix__", str(self.index))
-               .replace("__active__", "active" if self.index == self.slot.get() else "")
+        inlineScript = """
+        websocket.send(JSON.stringify({'event': 'click', 'ix': __ix__, 'target_cell': '__identity__'}))
+        """.replace('__identity__', self.target).replace('__ix__', self.index)
+        navLinkClasses = ['nav-link']
+        if self.index == self.slot.get():
+            navLinkClasses.append('active')
+        self.contents = str(
+            HTMLElement.li()
+            .add_class('nav-item')
+            .add_child(
+                HTMLElement.a()
+                .add_classes(navLinkClasses)
+                .set_attribute('role', 'tab')
+                .set_attribute('onclick', inlineScript)
+                .add_child(HTMLTextContent('____child__'))
+            )
         )
 
         self.children['____child__'] = Cell.makeCell(self.child)
