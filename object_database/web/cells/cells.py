@@ -1164,11 +1164,11 @@ class Sequence(Cell):
             return Sequence(self.elements + [other])
 
     def recalculate(self):
-        sequenceChildrenStr = '\n'.join("____c_{}__".format(
-                                        i for i in range(len(self.elements))))
+        sequenceChildrenStr = '\n'.join("____c_%s__" %
+                                        i for i in range(len(self.elements)))
         self.contents = str(
             HTMLElement.div()
-            set_attribute('style', self._divStyle())
+            .set_attribute('style', self._divStyle())
             .add_child(HTMLTextContent(sequenceChildrenStr))
         )
 
@@ -1223,7 +1223,7 @@ class LargePendingDownloadDisplay(Cell):
 
         self.contents = str(
             HTMLElement.span()
-            set_attribute('id', 'object_database_large_pending_download_text')
+            .set_attribute('id', 'object_database_large_pending_download_text')
         )
 
 
@@ -1264,14 +1264,14 @@ class HeaderBar(Cell):
                 .set_attribute('style', 'flex-grow:0;')
                 .add_child(
                     HTMLElement.div()
-                    add_class('flex-container')
+                    .add_class('flex-container')
                     .set_attribute('style',
                                    'display:flex;justify-content:flex-center;align-items:baseline;')
                     .add_children(self.leftElements)
                 ),
                 # Center Elements
                 HTMLElement.div()
-                add_class('flex-item')
+                .add_class('flex-item')
                 .set_attribute('style', 'flex-grow:1;')
                 .add_child(
                     HTMLElement.div()
@@ -1306,13 +1306,15 @@ class Main(Cell):
     def __init__(self, child):
         super().__init__()
 
-        self.contents = """
-            <main class="py-md-2">
-            <div class="container-fluid">
-                ____child__
-            </div>
-            </main>
-        """
+        self.contents = str(
+            HTMLElement.main()
+            .add_class('py-md-2')
+            .add_child(
+                HTMLElement.div()
+                .add_class('container-fluid')
+                .add_child(HTMLTextContent('____child__'))
+            )
+        )
         self.children = {'____child__': child}
 
 
