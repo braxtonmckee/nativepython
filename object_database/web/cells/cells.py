@@ -1373,24 +1373,27 @@ class Tabs(Cell):
             self.children['____header_{ix}__'.format(ix=i)] = _NavTab(
                 self.whichSlot, i, self._identity, self.headersAndChildren[i][0])
 
-        self.contents = (
-            """
-            <div class="container-fluid mb-3">
-                 <ul class="nav nav-tabs" role="tablist">
-                  __items__
-                </ul>
-                <div class="tab-content">
-                  <div class="tab-pane fade show active" role="tabpanel">____display__
-                </div>
-            </div>
-            """
-            .replace(
-                "__items__",
-                "".join(
+        headerItems = "".join(
                     """ ____header___ix____ """.replace('__ix__', str(i))
-                    for i in range(len(self.headersAndChildren))
+                    for i in range(len(self.headersAndChildren)))
+        self.contents = str(
+            HTMLElement.div()
+            .add_classes(['container-fluid', 'mb-3'])
+            .with_children(
+                HTMLElement.ul()
+                .add_classes(['nav', 'nav-tabs'])
+                .set_attribute('role', 'tablist')
+                .add_child(HTMLTextContent(headerItems)),
+
+                HTMLElement.div()
+                .add_class("tab-content")
+                .add_child(
+                    HTMLElement.div()
+                    .add_classes(['tab-pane', 'fade', 'show', 'active'])
+                    .set_attribute('role', 'tabpanel')
+                    .add_child(HTMLTextContent('____display__'))
                 )
-            ).replace("__identity__", self._identity)
+            )
         )
 
     def onMessage(self, msgFrame):
@@ -1437,34 +1440,41 @@ class Dropdown(Cell):
         for i in range(len(self.headersAndLambdas)):
             header, onDropdown = self.headersAndLambdas[i]
             self.children["____child_%s__" % i] = Cell.makeCell(header)
-
+            if not isinstance(onDropdown, str):
+                inlineScript = """
+                websocket.send(JSON.stringify({'event':'menu', 'ix': __ix__, 'target_cell': '__identity__'}))""".replace(str(i))
+            else:
+                inlineScript = quoteForJS("window.location.href = '%s'"
+                                          % (quoteForJS(onDropdown, "'")), '"')
+            childSubstitute = '____child_%s__' % str(i)
             items.append(
-                """
-                    <a class='dropdown-item'
-                        onclick="__onclick__"
-                        >
-                    ____child___ix____
-                    </a>
-                """.replace(
-                    "__onclick__",
-                    "websocket.send(JSON.stringify({'event':'menu', 'ix': __ix__, 'target_cell': '__identity__'}))"
-                    if not isinstance(onDropdown, str) else
-                    quoteForJs("window.location.href = '__url__'".replace(
-                        "__url__", quoteForJs(onDropdown, "'")), '"')
-                ).replace("__ix__", str(i)).replace("__identity__", self.identity)
+                HTMLElement.a()
+                .add_class('dropdown-item')
+                .set_attribute('onclick', inlineScript)
+                .add_child(HTMLTextContent(childSubstitute))
             )
+        self.contents = str(
+            HTMLElement.div()
+            .add_class('btn-group')
+            .with_children(
+                HTMLElement.a()
+                .add_classes(['btn', 'btn-xs', 'btn-outline-secondary'])
+                .add_child(HTMLTextContent('____title__')),
 
-        self.contents = """
-            <div class="btn-group">
-                  <a role="button" class="btn btn-xs btn-outline-secondary">____title__</a>
-                  <button class="btn btn-xs btn-outline-secondary dropdown-toggle dropdown-toggle-split" type="button"
-                        id="___identity__-dropdownMenuButton" data-toggle="dropdown">
-                  </button>
-                  <div class="dropdown-menu">
-                    __dropdown_items__
-                  </div>
-            </div>
-            """.replace("__identity__", self.identity).replace("__dropdown_items__", "\n".join(items))
+                HTMLElement.button()
+                .add_classes(['btn','btn-xs',
+                              'btn-outline-secondary',
+                              'dropdown-toggle',
+                              'dropdown-toggle-split'])
+                .set_attribute('type', 'button')
+                .set_attribute('id', '%s-dropdownMenuButton' % self.identity)
+                .set_attribute('data-toggle', 'dropdown'),
+
+                HTMLElement.div()
+                .add_class('dropdown-menu')
+                .add_children(items)
+            )
+        )
 
     def onMessage(self, msgFrame):
         fun = self.headersAndLambdas[msgFrame['ix']][1]
