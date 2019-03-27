@@ -1749,25 +1749,45 @@ class Popover(Cell):
         }
 
     def recalculate(self):
-        self.contents = """
-            <div __style__>
-            <a href="#popmain___identity__"
-               data-toggle="popover"
-               data-trigger="focus"
-               data-bind="#pop___identity__"
-               container="body"
-               class="btn btn-xs"
-               role="button">____contents__</a>
-            <div style="display:none;">
-              <div id="pop___identity__">
-                <div class='data-placement'>bottom</div>
-                <div class="data-title">____title__</div>
-                <div class="data-content"><div style="width:__width__px">____detail__</div></div>
-              </div>
-            </div>
+        self.contents = str(
+            HTMLElement.div()
+            .set_attribute('style', self._divStyle())
+            .with_children(
+                HTMLElement.a()
+                .set_attribute('href', '#popmain_%s' % self.identity)
+                .set_attribute('data-toggle', 'popover')
+                .set_attribute('data-trigger', 'focus')
+                .set_attribute('data-bind', '#pop_%s' % self.identity)
+                .set_attribute('container', 'body')
+                .set_attribute('role', 'button')
+                .add_classes(['btn', 'btn-xs'])
+                .add_child(HTMLTextContent('____contents__')),
 
-            </div>
-            """.replace("__style__", self._divStyle()).replace("__identity__", self.identity).replace("__width__", str(self.width))
+                HTMLElement.div()
+                .set_attribute('style', 'display:none;')
+                .add_child(
+                    HTMLElement.div()
+                    .set_attribute('id', '#pop_%s' % self.identity)
+                    .with_children(
+                        HTMLElement.div()
+                        .add_class('data-placement')
+                        .add_child(HTMLTextContent('bottom')),
+
+                        HTMLElement.div()
+                        .add_class('data-title')
+                        .add_child(HTMLTextContent('____title__')),
+
+                        HTMLElement.div()
+                        .add_class('data-content')
+                        .add_child(
+                            HTMLElement.div()
+                            .set_attribute('style', 'width: %spx' % str(self.width))
+                            .add_child(HTMLTextContent('____detail__'))
+                        )
+                    )
+                )
+            )
+        )
 
     def sortsAs(self):
         if '____title__' in self.children:
@@ -1878,31 +1898,46 @@ class Grid(Cell):
             if i not in seen:
                 del self.existingItems[i]
 
-        self.contents = (
-            """
-            <table class="table-hscroll table-sm table-striped">
-            <thead><tr>""" + ("<th></th>" if self.rowLabelFun is not None else "") + """__headers__</tr></thead>
-            <tbody>
-            __rows__
-            </tbody>
-            </table>
-            """
-            .replace(
-                "__headers__",
-                "".join("<th>____header_%s__</th>" % (col_ix)
-                        for col_ix in range(len(self.cols))))
-            .replace(
-                "__rows__",
-                "\n".join(
-                    "<tr>" +
-                    ("<td>____rowlabel_%s__</td>" % row_ix if self.rowLabelFun is not None else "") +
-                    "".join(
-                        "<td>____child_%s_%s__</td>" % (row_ix, col_ix)
-                        for col_ix in range(len(self.cols))
-                    ) +
-                    "</tr>"
-                    for row_ix in range(len(self.rows))
+        tableHeaders = []
+        for colIndex in range(len(self.cols)):
+            tableHeaders.append(
+                HTMLElement.th()
+                .add_child(HTMLTextContent('____header_%s__' % colIndex))
+            )
+        tableRows = []
+        for rowIndex in range(len(self.rows)):
+            rowLabel = HTMLTextContent("")
+            if self.rowLabelFun:
+                rowLabel = (
+                    HTMLElement.td()
+                    .add_child(HTMLTextContent('____rowlabel_%s__' % rowIndex))
                 )
+            tableColumns = []
+            for colIndex in range(len(self.cols)):
+                tableColumns.append(
+                    HTMLElement.td()
+                    .add_child(HTMLTextContent('____child_%s_%s__' % (rowIndex, colIndex)))
+                )
+            tableRows.append(
+                HTMLElement.tr()
+                .add_child(rowLabel)
+                .add_children(tableColumns)
+            )
+        topTableHeader = HTMLTextContent("")
+        if self.rowLabelFun is not None:
+            topTableHeader = HTMLElement.th()
+        self.contents = str(
+            HTMLElement.table()
+            .add_classes(['table-hscroll', 'table-sm', 'table-striped'])
+            .with_children(
+                HTMLElement.thead()
+                .add_child(
+                    HTMLElement.tr()
+                    .add_child(topTableHeader)
+                    .add_children(tableHeaders)
+                ),
+                HTMLElement.tbody()
+                .add_children(tableRows)
             )
         )
 
