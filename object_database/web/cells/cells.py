@@ -2226,34 +2226,59 @@ class Table(Cell):
                 ).nowrap()
             )
 
-        self.contents = (
-            """
-            <table class="table-hscroll table-sm table-striped">
-            <thead style="border-bottom: black;border-bottom-style:solid;border-bottom-width:thin;""><tr>""" +
-            f'<th style="vertical-align:top"><div class="card"><div class="card-body p-1">{rowDisplay}</div></div></th>' +
-            """
-            __headers__</tr></thead>
-            <tbody>
-            __rows__
-            </tbody>
-            </table>
-            """
-            .replace(
-                "__headers__",
-                "".join('<th style="vertical-align:top">____header_%s__</th>' % (col_ix)
-                        for col_ix in range(len(self.cols))))
-            .replace(
-                "__rows__",
-                "\n".join(
-                    "<tr>" +
-                    ("<td>%s</td>" % (row_ix+1)) +
-                    "".join(
-                        "<td>____child_%s_%s__</td>" % (row_ix, col_ix)
-                        for col_ix in range(len(self.cols))
-                    ) +
-                    "</tr>"
-                    for row_ix in range(len(self.rows))
+        headerElements = []
+        for colIndex in range(len(self.cols)):
+            headerElements.append(
+                HTMLElement.th()
+                .set_attribute('style', 'vertical-align:top;')
+                .add_child(HTMLTextContent('____header_%s__' % str(colIndex)))
+            )
+
+        rowElements = []
+        for rowIndex in range(len(self.rows)):
+            colElements = []
+            colElements.append(
+                HTMLElement.td()
+                .add_child(HTMLTextContent(str(rowIndex+1)))
+            )
+            for colIndex in range(len(self.cols)):
+                colElements.append(
+                    HTMLElement.td()
+                    .add_child(HTMLTextContent('____child_%s_%s__' % (rowIndex, colIndex)))
                 )
+            rowElements.append(
+                HTMLElement.tr()
+                .add_children(colElements)
+            )
+
+        firstRowElement = (
+            HTMLElement.tr()
+            .add_child(
+                HTMLElement.th()
+                .set_attribute('style', 'vertical-align:top;')
+                .add_child(
+                    HTMLElement.div()
+                    .add_class('card')
+                    .add_child(
+                        HTMLElement.div()
+                        .add_classes(['card-body', 'p-1'])
+                        .add_child(HTMLTextContent(rowDisplay))
+                    )
+                )
+            )
+        )
+        firstRowElement.add_children(headerElements)
+
+        self.contents = str(
+            HTMLElement.table()
+            .add_classes(['table-hscroll', 'table-sm', 'table-striped'])
+            .with_children(
+                HTMLElement.thead()
+                .set_attribute('style', 'border-bottom: black;border-bottom-style:solid;border-bottom-width:thin;')
+                .add_child(firstRowElement),
+
+                HTMLElement.tbody()
+                .add_children(rowElements)
             )
         )
 
