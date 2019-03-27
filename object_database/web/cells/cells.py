@@ -1488,11 +1488,18 @@ class Container(Cell):
             self.contents = ""
             self.children = {}
         else:
-            self.contents = "<div>____child__</div>"
+            self.contents = str(
+                HTMLElement.div()
+                .add_child(HTMLTextContent('____child__'))
+            )
             self.children = {"____child__": Cell.makeCell(child)}
 
     def setChild(self, child):
-        self.setContents("<div>____child__</div>",
+        childElement = (
+            HTMLElement.div()
+            .add_child(HTMLTextContent('____child__'))
+        )
+        self.setContents(str(childElement),
                          {"____child__": Cell.makeCell(child)})
 
     def setContents(self, newContents, newChildren):
@@ -1513,7 +1520,11 @@ class RootCell(Container):
         return "page_root"
 
     def setChild(self, child):
-        self.setContents("<div>____c__</div>", {"____c__": child})
+        childElement(
+            HTMLElement.div()
+            .add_chidl(HTMLTextContent('____c__'))
+        )
+        self.setContents(str(childElement), {"____c__": child})
 
 
 class Traceback(Cell):
