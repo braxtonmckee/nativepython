@@ -827,7 +827,7 @@ class Cell:
         if not res:
             return ""
         else:
-            return "style='%s'" % ";".join(res)
+            return ";".join(res)
 
     def nowrap(self):
         self._nowrap = True
@@ -986,25 +986,37 @@ class Modal(Cell):
         }
 
     def recalculate(self):
-        self.contents = (
-            f"""
-            <div class="modal fade show" tabindex="-1" role="dialog" style="display: block; padding-right: 15px;">
-              <div class="modal-dialog" role="document">
-                <div class="modal-content">
-                  <div class="modal-header">
-                    <h5 class="modal-title">____title__</h5>
-                  </div>
-                  <div class="modal-body">
-                    ____message__
-                  </div>
-                  <div class="modal-footer">
-                    __buttons__
-                  </div>
-                </div>
-              </div>
-            </div>
-            """
-            .replace("__buttons__", " ".join(self.buttons))
+        mainStyle = 'display: block; padding-right: 15px;'
+        self.contents = str(
+            HTMLElement.div()
+            .add_classes(['modal', 'fade', 'show'])
+            .set_attribute('role', 'dialog')
+            .set_attribute('style', mainStyle)
+            .add_child(
+                HTMLElement.div()
+                .add_class('modal-dialog')
+                .set_attribute('role', 'document')
+                .add_child(
+                    HTMLElement.div()
+                    .add_class('modal-content')
+                    .with_children(
+                        HTMLElement.div()
+                        .add_class('modal-header')
+                        .add_child(
+                            HTMLElement.h5()
+                            .add_class('modal-title')
+                            .add_child(HTMLTextContent('____title__'))
+                        ),
+                        HTMLElement.div()
+                        .add_class('modal-body')
+                        .add_child(HTMLTextContent('____message__')),
+                        HTMLElement.div()
+                        .add_class('modal-footer')
+                        .add_child(HTMLTextContent(" ".join(self.buttons)))
+
+                    )
+                )
+            )
         )
         self.children = dict(self.buttons)
         self.children["____title__"] = self.title
@@ -1020,9 +1032,13 @@ class Octicon(Cell):
         return self.whichOcticon
 
     def recalculate(self):
-        self.contents = (
-            '<span class="octicon octicon-%s" aria-hidden="true" __style__></span>' % self.whichOcticon
-        ).replace('__style__', self._divStyle())
+        octiconClasses = ['octicon', ('octicon-%s' % self.whichOcticon)]
+        self.contents = str(
+            HTMLElement.span()
+            .add_classes(octiconClasses)
+            .set_attribute('aria-hidden', 'true')
+            .set_attribute('style', self._divStyle())
+        )
 
 
 class Badge(Cell):
@@ -1035,8 +1051,11 @@ class Badge(Cell):
         return self.inner.sortsAs()
 
     def recalculate(self):
-        self.contents = """<span class="badge badge-__style__">____child__</span>""".replace(
-            "__style__", self.style
+        self.contents = str(
+            HTMLElement.span()
+            .add_class('badge')
+            .add_class(f'badge-{}'.format(self.style))
+            .add_child(HTMLTextContent('____child__'))
         )
         self.children = {'____child__': self.inner}
 
@@ -1054,26 +1073,29 @@ class CollapsiblePanel(Cell):
     def recalculate(self):
         expanded = self.evaluateWithDependencies(self.isExpanded)
         if expanded:
-            container = HTMLElement.div().add_class("container-fluid")
-            container.attributes["style"] = self._divStyle()
-            row = HTMLElement.div().add_classes(
-                ["row", "flex-nowrap", "no-gutters"]
-            ).with_children(
-                HTMLElement.div().add_class("col-md-auto").add_child(
-                    HTMLTextContent("____panel__")
-                ),
-                HTMLElement.div().add_class("col-sm").add_child(
-                    HTMLTextContent("____content__")
+            self.contents = str(
+                HTMLElement.div()
+                .add_class('container-fluid')
+                .set_attribute('style', self._divStyle())
+                .add_child(
+                    HTMLElement.div()
+                    .add_classes(['row', 'flex-nowrap', 'no-gutters'])
+                    .with_children(
+                        HTMLElement.div()
+                        .add_class('col-md-auto')
+                        .add_child(HTMLTextContent('____panel__')),
+                        HTMLElement.div()
+                        .add_class('col-sm')
+                        .add_child(HTMLTextContent('____content__'))
+                    )
                 )
             )
-            container.add_child(row)
-            self.contents = str(container)
         else:
-            unexpanded_container = HTMLElement.div().add_child(
-                HTMLTextContent("____content__")
+            self.contents = str(
+                HTMLElement.div()
+                .add_child(HTMLTextContent('____content__'))
+                .set_attribute('style', self._divStyle())
             )
-            unexpanded_container.attributes['style'] = self._divStyle()
-            self.contents = str(unexpanded_container)
 
         self.children = {
             '____content__': self.content
@@ -1093,9 +1115,11 @@ class Text(Cell):
         return self._sortAs
 
     def recalculate(self):
-        self.contents = "<div %s>%s</div>" % (
-            self._divStyle(),
-            cgi.escape(str(self.text)) if self.text else "&nbsp;"
+        escapedText = cgi.escape(str(self.text)) if self.text else "&nbsp;"
+        self.contents = str(
+            HTMLElement.div()
+            .set_attribute('style', self._divStyle())
+            .add_child(HTMLTextContent(escapedText))
         )
 
 
