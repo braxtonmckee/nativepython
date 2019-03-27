@@ -1979,21 +1979,19 @@ class SingleLineTextBox(Cell):
         self.slot = slot
 
     def recalculate(self):
-        self.contents = (
-            """
-            <input __style__ type="text" id="text___identity__" onchange="
-                websocket.send(JSON.stringify({'event':'click', 'target_cell': '__identity__', 'text': this.value}))
-                "
-                value="__contents__"
-                __pat__
-                __width__
-                >
-            """.replace("__style__", self._divStyle())
-               .replace("__identity__", self.identity)
-               .replace("__contents__", quoteForJs(self.slot.get(), '"'))
-               .replace("__pat__", "" if not self.pattern else quoteForJs(self.pattern, '"'))
-               .replace("__style__", self._divStyle())
+        inlineScript = """
+        websocket.send(JSON.stringify({'event':'click', 'target_cell': '__identity__', 'text': this.value})""".replace('__identity__', self.identity)
+        inputValue = quoteForJS(self.slot.get(), '"')
+        element = (
+            HTMLElement.input()
+            .set_attribute('type', 'text')
+            .set_attribute('id', 'text_%s' % self.identity)
+            .set_attribute('onchange', inlineScript)
+            .set_attribute('value', inputValue)
         )
+        if self.pattern:
+            element.set_attribute('pattern', self.pattern)
+        self.contents = str(element)
 
     def onMessage(self, msgFrame):
         self.slot.set(msgFrame['text'])
