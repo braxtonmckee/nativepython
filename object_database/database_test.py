@@ -146,11 +146,35 @@ class StringIndexed:
     name = Indexed(str)
 
 
+@schema.define
+class ThingWithObjectIndex:
+    value = Indexed(object)
+    name = str
+
+    name_and_value = Index('name', 'value')
+
+
 class ObjectDatabaseTests:
     @classmethod
     def setUpClass(cls):
         configureLogging("database_test")
         cls.PERFORMANCE_FACTOR = 1.0 if os.environ.get('TRAVIS_CI', None) is None else 2.0
+
+    def test_object_indices(self):
+        db = self.createNewDb()
+        db.subscribeToSchema(schema)
+
+        with db.transaction():
+            z = ThingWithObjectIndex(value=None)
+            z.value = z
+
+        with db.transaction():
+            self.assertEqual(ThingWithObjectIndex.lookupAny(value=z), z)
+            z.value = "hello"
+            z.name = "name"
+            self.assertEqual(ThingWithObjectIndex.lookupAny(value=z), None)
+            self.assertEqual(ThingWithObjectIndex.lookupAny(value="hello"), z)
+            self.assertEqual(ThingWithObjectIndex.lookupAny(name_and_value=("name", "hello")), z)
 
     def test_assigning_dicts(self):
         db = self.createNewDb()

@@ -403,7 +403,9 @@ class DatabaseConnection:
         for t in objects:
             self.addSchema(type(t).__schema__)
         self.subscribeMultiple([
-            (type(t).__schema__.name, type(t).__qualname__, ("_identity", keymapping.index_value_to_hash(t._identity)), False)
+            (type(t).__schema__.name, type(t).__qualname__,
+                ("_identity", keymapping.index_value_to_hash(t._identity, self.serializationContext)),
+                False)
             for t in objects
         ])
 
@@ -422,7 +424,7 @@ class DatabaseConnection:
             toSubscribe.append((
                 t.__schema__.name,
                 t.__qualname__,
-                (fieldname, keymapping.index_value_to_hash(fieldvalue)),
+                (fieldname, keymapping.index_value_to_hash(fieldvalue, self.serializationContext)),
                 self._lazinessForType(t, lazySubscription))
             )
 

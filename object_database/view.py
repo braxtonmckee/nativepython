@@ -143,7 +143,10 @@ class View(object):
 
         fieldId = self._db._fields_to_field_ids.get(key)
 
-        return object_database.schema.IndexId(fieldId=fieldId, indexValue=index_value_to_hash(indexValue))
+        return object_database.schema.IndexId(
+            fieldId=fieldId,
+            indexValue=index_value_to_hash(indexValue, self.serializationContext)
+        )
 
     def _new(self, cls, args, kwds):
         if not self._writeable:

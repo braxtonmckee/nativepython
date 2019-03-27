@@ -64,7 +64,7 @@ class Hash:
         return self.digest == other.digest
 
 
-def sha_hash(val):
+def sha_hash(val, serializationContext=None):
     if isinstance(val, tuple):
         h0 = Hash.from_integer(len(val))
         for i in val:
@@ -86,4 +86,4 @@ def sha_hash(val):
     if hasattr(val, "__sha_hash__"):
         return val.__sha_hash__()
 
-    return sha_hash(serialize(type(val), val))
+    return sha_hash(serialize(type(val), val, serializationContext))
