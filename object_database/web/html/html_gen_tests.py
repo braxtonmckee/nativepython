@@ -60,6 +60,13 @@ class HTMLGeneratorTests(unittest.TestCase):
         element.remove_class("test")
         self.assertTrue("class" not in element.attributes)
 
+    def test_set_attribute(self):
+        element = HTMLElement()
+        element.set_attribute('role', 'primary')
+        element.set_attribute('class', 'window column-4 centered')
+        self.assertEqual(element.attributes['role'], 'primary')
+        self.assertEqual(element.attributes['class'], 'window column-4 centered')
+
     def test_print_on_basic(self):
         stream = StringIO()
         element = HTMLElement('div')
@@ -158,6 +165,11 @@ class HTMLChainingMethodTests(unittest.TestCase):
         child_two = HTMLElement()
         result = element.with_children(child_one, child_two)
         self.assertEqual(result, element)
+
+    def test_chaining_set_attribute(self):
+        element = HTMLElement()
+        result = element.set_attribute('role', 'primary')
+        self.assertEqual(element, result)
 
     def tearDown(self):
         pass
