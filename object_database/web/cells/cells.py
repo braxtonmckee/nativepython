@@ -1520,9 +1520,9 @@ class RootCell(Container):
         return "page_root"
 
     def setChild(self, child):
-        childElement(
+        childElement = (
             HTMLElement.div()
-            .add_chidl(HTMLTextContent('____c__'))
+            .add_child(HTMLTextContent('____c__'))
         )
         self.setContents(str(childElement), {"____c__": child})
 
@@ -1530,7 +1530,14 @@ class RootCell(Container):
 class Traceback(Cell):
     def __init__(self, traceback):
         super().__init__()
-        self.contents = """<div class='alert alert-primary'><pre>____child__</pre></alert>"""
+        self.contents = str(
+            HTMLElement.div()
+            .add_classes(['alert', 'alert-primary'])
+            .add_child(
+                HTMLElement.pre()
+                .add_child(HTMLTextContent('____child__'))
+            )
+        )
         self.traceback = traceback
         self.children = {"____child__": Cell.makeCell(traceback)}
 
@@ -1541,7 +1548,13 @@ class Traceback(Cell):
 class Code(Cell):
     def __init__(self, codeContents):
         super().__init__()
-        self.contents = """<pre><code>____child__</code></pre>"""
+        self.contents = str(
+            HTMLElement.pre()
+            .add_child(
+                HTMLElement.code()
+                .add_child(HTMLTextContent('____child__'))
+            )
+        )
         self.codeContents = codeContents
         self.children = {"____child__": Cell.makeCell(codeContents)}
 
@@ -1576,7 +1589,10 @@ class ContextualDisplay(Cell):
     def __init__(self, obj):
         super().__init__()
         self.obj = obj
-        self.contents = """<div>____child__</div>"""
+        self.contents = str(
+            HTMLElement.div()
+            .add_child(HTMLTextContent('____child__'))
+        )
 
     def getChild(self):
         if type(self.obj) in ContextualDisplay._typeToDisplay:
