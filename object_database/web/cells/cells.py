@@ -1054,7 +1054,7 @@ class Badge(Cell):
         self.contents = str(
             HTMLElement.span()
             .add_class('badge')
-            .add_class(f'badge-{}'.format(self.style))
+            .add_class('badge-{}'.format(self.style))
             .add_child(HTMLTextContent('____child__'))
         )
         self.children = {'____child__': self.inner}
@@ -1126,8 +1126,11 @@ class Text(Cell):
 class Padding(Cell):
     def __init__(self):
         super().__init__()
-        self.contents = "<span class='px-2'>&nbsp</span>"
-
+        self.contents = str(
+            HTMLElement.span()
+            .add_class('px-2')
+            .add_child(HTMLTextContent('&nbsp'))
+        )
     def sortsAs(self):
         return " "
 
@@ -1135,7 +1138,10 @@ class Padding(Cell):
 class Span(Cell):
     def __init__(self, text):
         super().__init__()
-        self.contents = "<span>%s</span>" % cgi.escape(str(text))
+        self.contents = str(
+            HTMLElement.span()
+            .add_child(HTMLTextContent(cgi.escape(str(text))))
+        )
 
     def sortsAs(self):
         return self.contents
@@ -1158,8 +1164,13 @@ class Sequence(Cell):
             return Sequence(self.elements + [other])
 
     def recalculate(self):
-        self.contents = "<div %s>" % self._divStyle() + "\n".join("____c_%s__" %
-                                                                  i for i in range(len(self.elements))) + "</div>"
+        sequenceChildrenStr = '\n'.join("____c_{}__".format(
+                                        i for i in range(len(self.elements))))
+        self.contents = str(
+            HTMLElement.div()
+            set_attribute('style', self._divStyle())
+            .add_child(HTMLTextContent(sequenceChildrenStr))
+        )
 
     def sortsAs(self):
         if self.elements:
@@ -1175,20 +1186,21 @@ class Columns(Cell):
         self.elements = elements
         self.children = {"____c_%s__" %
                          i: elements[i] for i in range(len(elements))}
-        self.contents = (
-            """
-            <div class="container-fluid" __style__>
-            <div class="row flex-nowrap">
-                __contents__
-            </div>
-            </div>
-            """
-            .replace("__style__", self._divStyle())
-            .replace(
-                "__contents__",
-                "\n".join(
-                    """<div class="col-sm"> ____c_%s__ </div>""" % i
-                    for i in range(len(elements)))
+
+        innerChildren = [
+            HTMLElement.div()
+            .add_class('col-sm')
+            .add_child(HTMLTextContent('____c_%s' % i))
+            for i in range(len(elements))
+        ]
+        self.contents = str(
+            HTMLElement.div()
+            .add_class('container-fluid')
+            .set_attribute('style', self._divStyle())
+            .add_child(
+                HTMLElement.div()
+                .add_classes(['row', 'flex-nowrap'])
+                .add_children(innerChildren)
             )
         )
 
