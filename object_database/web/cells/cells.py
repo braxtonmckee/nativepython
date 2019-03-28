@@ -2301,18 +2301,14 @@ class Clickable(Cell):
 
     def recalculate(self):
         self.children = {'____contents__': self.content}
-
-        self.contents = (
-            """
-            <div onclick="__onclick__" __style__>
-            ____contents__
-            </div>"""
-            .replace('__onclick__', self.calculatedOnClick())
-            .replace(
-                '__style__',
-                self._divStyle("cursor:pointer;*cursor: hand" +
+        style = self._divStyle("cursor:pointer;*cursor: hand" +
                                (";font-weight:bold" if self.bold else ""))
-            )
+
+        self.contents = str(
+            HTMLElement.div()
+            .set_attribute('style', style)
+            .set_attribute('onclick', self.calculateOnClick())
+            .add_child(HTMLTextContent('____contents__'))
         )
 
     def sortsAs(self):
