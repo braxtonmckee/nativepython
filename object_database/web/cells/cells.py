@@ -2753,13 +2753,16 @@ class Sheet(Cell):
         """ .replace("__identity__", self._identity)
 
     def recalculate(self):
-        self.contents = """
-            <div>
-                <div id="sheet__identity__" class='handsontable' __style__></div>
-                ____error__
-            </div>
-            """.replace("__style__", self._divStyle()).replace("__identity__", self.identity)
-
+        self.contents = str(
+            HTMLElement.div()
+            .add_child(
+                HTMLElement.div()
+                .set_attribute('id', 'sheet%s' % self.identity)
+                .set_attribute('style', self._divStyle())
+                .add_class('handsontable')
+                .add_child(HTMLTextContent('____error__'))
+            )
+        )
         self.children = {
             '____error__': Subscribed(lambda: Traceback(self.error.get()) if self.error.get() is not None else Text(""))
         }
