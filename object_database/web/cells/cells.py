@@ -2905,14 +2905,18 @@ class Plot(Cell):
         self.error = Slot(None)
 
     def recalculate(self):
-        self.contents = """
-            <div>
-                <div __style__ id="plot__identity__"></div>
-                ____chart_updater__
-                ____error__
-            </div>
-            """.replace("__style__", self._divStyle()).replace("__identity__", self.identity)
-
+        self.contents = str(
+            HTMLElement.div()
+            .add_child(
+                HTMLElement.div()
+                .set_attribute('id', 'plot%s' % self.identity)
+                .set_attribute('style', self._divStyle())
+            )
+            .add_children([
+                HTMLTextContent('____chart_updater__'),
+                HTMLTextContent('____error__')
+            ])
+        )
         self.children = {
             '____chart_updater__': _PlotUpdater(self),
             '____error__': Subscribed(lambda: Traceback(self.error.get()) if self.error.get() is not None else Text(""))
