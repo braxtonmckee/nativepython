@@ -1728,8 +1728,9 @@ class SubscribedSequence(Cell):
                 )
             )
         else:
-            spineChildren = "\n".join(['____child_%s__' %
-                                       i for i in range(len(self.spine))])
+            spineChildren = []
+            for i in range(len(self.spine)):
+                spineChildren.append('____child_%s__' % i)
             self.contents = str(
                 HTMLElement.div()
                 .set_attribute('style', self._divStyle)
@@ -2428,19 +2429,23 @@ class Expands(Cell):
         return self.closed.sortsAs()
 
     def recalculate(self):
-        self.contents = """
-            <div __style__>
-                <div onclick="websocket.send(JSON.stringify({'event':'click', 'target_cell': '__identity__'}))"
-                        style="display:inline-block;vertical-align:top">
-                    ____icon__
-                </div>
+        inlineScript = "websocket.send(JSON.stringify({'event':'click', 'target_cell': '%s'}))" % self.identity
+        self.contents = str(
+            HTMLElement.div()
+            .set_attribute('style', self._divStyle())
+            .with_children(
+                HTMLElement.div()
+                .set_attribute('style', 'display:inline-block;vertical-align:top')
+                .set_attribute('onclick', inlineScript)
+                .add_child(HTMLTextContent('____icon__')),
 
-                <div style="display:inline-block">
-                    ____child__
-                </div>
-            </div>
-            """.replace("__identity__", self.identity)
-        self.contents = self.contents.replace("__style__", self._divStyle())
+                HTMLElement.div()
+                .set_attribute('style', 'display:inline-block')
+                .add_child(HTMLTextContent('____child__'))
+
+            )
+        )
+
         self.children = {
             '____child__': self.open if self.isExpanded else self.closed,
             '____icon__': self.openedIcon if self.isExpanded else self.closedIcon
