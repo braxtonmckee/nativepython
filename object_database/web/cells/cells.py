@@ -1733,8 +1733,8 @@ class SubscribedSequence(Cell):
                 spineChildren.append('____child_%s__' % i)
             self.contents = str(
                 HTMLElement.div()
-                .set_attribute('style', self._divStyle)
-                .add_child(HTMLTextContent(spineChildren))
+                .set_attribute('style', self._divStyle())
+                .add_child(HTMLTextContent("\n".join(spineChildren)))
             )
 
 
