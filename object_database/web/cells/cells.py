@@ -2516,12 +2516,17 @@ class CodeEditor(Cell):
 
     def recalculate(self):
         self.children = {}
-        self.contents = """
-            <div __style__>
-            <div id="editor__identity__" style="width:100%;height:100%;margin:auto;border:1px solid lightgray"></div>
-            </div>
-        """.replace("__identity__", self.identity).replace("__style__", self._divStyle()) + ";"
 
+        editorStyle = 'width:100%;height:100%;margin:auto;border:1px solid lightgray;'
+        self.contents = str(
+            HTMLElement.div()
+            .set_attribute('style', self._divStyle())
+            .add_child(
+                HTMLElement.div()
+                .set_attribute('id', 'editor%s' % self.identity)
+                .set_attribute('style', editorStyle)
+            )
+        )
         self.postscript = """
             var editor = ace.edit("editor__identity__");
             aceEditors["editor__identity__"] = editor
