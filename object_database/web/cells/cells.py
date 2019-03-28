@@ -2368,11 +2368,14 @@ class LoadContentsFromUrl(Cell):
 
     def recalculate(self):
         self.children = {}
-        self.contents = """
-            <div>
-            <div id='loadtarget__identity__'></div>
-            </div>
-            """.replace('__identity__', self._identity)
+
+        self.contents = str(
+            HTMLElement.div()
+            .add_child(
+                HTMLElement.div()
+                .set_attribute('loadtarget%s' % self._identity)
+            )
+        )
 
         self.postscript = (
             "$('#loadtarget__identity__').load('__url__')"
