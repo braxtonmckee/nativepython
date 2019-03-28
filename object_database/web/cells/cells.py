@@ -2307,7 +2307,7 @@ class Clickable(Cell):
         self.contents = str(
             HTMLElement.div()
             .set_attribute('style', style)
-            .set_attribute('onclick', self.calculateOnClick())
+            .set_attribute('onclick', self.calculatedOnClick())
             .add_child(HTMLTextContent('____contents__'))
         )
 
@@ -2330,18 +2330,17 @@ class Button(Clickable):
 
     def recalculate(self):
         self.children = {'____contents__': self.content}
-        self.contents = (
-            f"""
-            <button
-                class='btn btn{'-outline' if not self.active else ''}-{self.style} __size__'
-                onclick="__onclick__"
-                >
-            ____contents__
-            </button>"""
-            .replace("__size__", "" if not self.small else "btn-xs")
-            .replace("__size__", "" if not self.small else "btn-xs")
-            .replace('__identity__', self.identity)
-            .replace("__onclick__", self.calculatedOnClick())
+
+        classList = ['btn']
+        buttonStateClass = f"""btn{'-outline' if not self.active else ''}-{self.style}"""
+        classList.append(buttonStateClass)
+        buttonSize = ("" if not self.small else "btn-xs")
+        classList.append(buttonSize)
+        self.contents = str(
+            HTMLElement.button()
+            .add_classes(classList)
+            .set_attribute('onclick', self.calculatedOnClick())
+            .add_child(HTMLTextContent('____contents__'))
         )
 
 
@@ -2353,12 +2352,12 @@ class ButtonGroup(Cell):
     def recalculate(self):
         self.children = {
             f'____{i}__': self.buttons[i] for i in range(len(self.buttons))}
-        self.contents = (
-            """
-            <div class="btn-group" role="group">
-                __buttons__
-            </div>"""
-            .replace("__buttons__", " ".join(f"____{i}__" for i in range(len(self.buttons))))
+        innerButtons = HTMLTextContent(" ".join(f"____{i}__" for i in range(len(self.buttons))))
+        self.contents = str(
+            HTMLElement.div()
+            .add_class('btn-group')
+            .set_attribute('role', 'group')
+            .add_child(innerButtons)
         )
 
 
