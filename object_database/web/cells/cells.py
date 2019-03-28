@@ -1192,7 +1192,7 @@ class Columns(Cell):
         innerChildren = [
             HTMLElement.div()
             .add_class('col-sm')
-            .add_child(HTMLTextContent('____c_%s' % i))
+            .add_child(HTMLTextContent('____c_%s__' % i))
             for i in range(len(elements))
         ]
         self.contents = str(
@@ -1251,7 +1251,7 @@ class HeaderBar(Cell):
         self.rightElements = [
             HTMLElement.span()
             .add_classes(['flex-item', 'px-3'])
-            .add_child(HTMLTextContent('____left_%s__' % i))
+            .add_child(HTMLTextContent('____right_%s__' % i))
             for i in range(len(self.rightItems))
         ]
 
@@ -1332,7 +1332,7 @@ class _NavTab(Cell):
     def recalculate(self):
         inlineScript = """
         websocket.send(JSON.stringify({'event': 'click', 'ix': __ix__, 'target_cell': '__identity__'}))
-        """.replace('__identity__', self.target).replace('__ix__', self.index)
+        """.replace('__identity__', self.target).replace('__ix__', str(self.index))
         navLinkClasses = ['nav-link']
         if self.index == self.slot.get():
             navLinkClasses.append('active')
@@ -1442,10 +1442,10 @@ class Dropdown(Cell):
             self.children["____child_%s__" % i] = Cell.makeCell(header)
             if not isinstance(onDropdown, str):
                 inlineScript = """
-                websocket.send(JSON.stringify({'event':'menu', 'ix': __ix__, 'target_cell': '__identity__'}))""".replace(str(i))
+                websocket.send(JSON.stringify({'event':'menu', 'ix': __ix__, 'target_cell': '__identity__'}))""".replace('__ix__', str(i))
             else:
-                inlineScript = quoteForJS("window.location.href = '%s'"
-                                          % (quoteForJS(onDropdown, "'")), '"')
+                inlineScript = quoteForJs("window.location.href = '%s'"
+                                          % (quoteForJs(onDropdown, "'")), '"')
             childSubstitute = '____child_%s__' % str(i)
             items.append(
                 HTMLElement.a()
@@ -1981,7 +1981,7 @@ class SingleLineTextBox(Cell):
     def recalculate(self):
         inlineScript = """
         websocket.send(JSON.stringify({'event':'click', 'target_cell': '__identity__', 'text': this.value})""".replace('__identity__', self.identity)
-        inputValue = quoteForJS(self.slot.get(), '"')
+        inputValue = quoteForJs(self.slot.get(), '"')
         element = (
             HTMLElement.input()
             .set_attribute('type', 'text')
