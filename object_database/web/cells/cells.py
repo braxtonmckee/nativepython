@@ -1374,8 +1374,8 @@ class Tabs(Cell):
                 self.whichSlot, i, self._identity, self.headersAndChildren[i][0])
 
         headerItems = "".join(
-                    """ ____header___ix____ """.replace('__ix__', str(i))
-                    for i in range(len(self.headersAndChildren)))
+            """ ____header___ix____ """.replace('__ix__', str(i))
+            for i in range(len(self.headersAndChildren)))
         self.contents = str(
             HTMLElement.div()
             .add_classes(['container-fluid', 'mb-3'])
@@ -1462,7 +1462,7 @@ class Dropdown(Cell):
                 .add_child(HTMLTextContent('____title__')),
 
                 HTMLElement.button()
-                .add_classes(['btn','btn-xs',
+                .add_classes(['btn', 'btn-xs',
                               'btn-outline-secondary',
                               'dropdown-toggle',
                               'dropdown-toggle-split'])
@@ -1981,7 +1981,9 @@ class SingleLineTextBox(Cell):
 
     def recalculate(self):
         inlineScript = """
-        websocket.send(JSON.stringify({'event':'click', 'target_cell': '__identity__', 'text': this.value})""".replace('__identity__', self.identity)
+        websocket.send(JSON.stringify({'event':'click', \
+        'target_cell': '__identity__', 'text': this.value})"""
+        inlineScript = inlineScript.replace('__identity__', self.identity)
         inputValue = quoteForJs(self.slot.get(), '"')
         element = (
             HTMLElement.input()
