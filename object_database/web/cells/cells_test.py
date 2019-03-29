@@ -102,6 +102,119 @@ class CellsHTMLTests(unittest.TestCase):
         error_str = self.validator_str(cell.contents, validator)
         self.assertTrue(self.is_valid(validator), error_str)
 
+    def test_badge_html_valid(self):
+        cell = Badge("Some inner content here")
+        validator = HTMLValidator()
+        cell.recalculate()
+        validator.validate_fragment(cell.contents)
+        error_str = self.validator_str(cell.contents, validator)
+        self.assertTrue(self.is_valid(validator), error_str)
+
+    def test_collapsible_panel_html_valid(self):
+        cell = CollapsiblePanel("Inner panel content", "Other content", True)
+        validator = HTMLValidator()
+        cell.recalculate()
+        validator.validate_fragment(cell.contents)
+        error_str = self.validator_str(cell.contents, validator)
+        self.assertTrue(self.is_valid(validator), error_str)
+
+    def test_text_html_valid(self):
+        cell = Text("This is some text")
+        validator = HTMLValidator()
+        cell.recalculate()
+        validator.validate_fragment(cell.contents)
+        error_str = self.validator_str(cell.contents, validator)
+        self.assertTrue(self.is_valid(validator), error_str)
+
+    def test_padding_html_valid(self):
+        cell = Padding()
+        validator = HTMLValidator()
+        cell.recalculate()
+        validator.validate_fragment(cell.contents)
+        error_str = self.validator_str(cell.contents, validator)
+        self.assertTrue(self.is_valid(validator), error_str)
+
+    def test_span_html_valid(self):
+        cell = Span("Some spanned text")
+        validator = HTMLValidator()
+        cell.recalculate()
+        validator.validate_fragment(cell.contents)
+        error_str = self.validator_str(cell.contents, validator)
+        self.assertTrue(self.is_valid(validator), error_str)
+
+    def test_sequence_html_valid(self):
+        elements = [
+            Text("Element One"),
+            Text("Element two")
+        ]
+        cell = Sequence(elements)
+        validator = HTMLValidator()
+        cell.recalculate()
+        validator.validate_fragment(cell.contents)
+        error_str = self.validator_str(cell.contents, validator)
+        self.assertTrue(self.is_valid(validator), error_str)
+
+    def test_columns_html_valid(self):
+        elements = [
+            Text("Element One"),
+            Text("Element Two")
+        ]
+        cell = Columns(elements)
+        validator = HTMLValidator()
+        cell.recalculate()
+        validator.validate_fragment(cell.contents)
+        error_str = self.validator_str(cell.contents, validator)
+        self.assertTrue(self.is_valid(validator), error_str)
+
+    def test_lg_pending_download_html_valid(self):
+        cell = LargePendingDownloadDisplay()
+        validator = HTMLValidator()
+        cell.recalculate()
+        validator.validate_fragment(cell.contents)
+        error_str = self.validator_str(cell.contents, validator)
+        self.assertTrue(self.is_valid(validator), error_str)
+
+    def test_header_bar_html_valid(self):
+        leftItems = [
+            Text("Left One"),
+            Text("Left Two")
+        ]
+        centerItems = [
+            Text("Center item")
+        ]
+        rightItems = [
+            Text("Right One"),
+            Text("Right Two"),
+            Text("Right Three")
+        ]
+        cell = HeaderBar(leftItems, centerItems, rightItems)
+        validator = HTMLValidator()
+        cell.recalculate()
+        validator.validate_fragment(cell.contents)
+        error_str = self.validator_str(cell.contents, validator)
+        self.assertTrue(self.is_valid(validator), error_str)
+
+    def test_main_html_valid(self):
+        child = Text("This is a child cell")
+        cell = Main(child)
+        validator = HTMLValidator()
+        cell.recalculate()
+        validator.validate_fragment(cell.contents)
+        error_str = self.validator_str(cell.contents, validator)
+        self.assertTrue(self.is_valid(validator), error_str)
+
+    @unittest.skip("Inline placeholders for <ul> are invalid. Will refactor.")
+    def test_tabs_html_valid(self):
+        cell = Tabs(
+            Tab1=Card("Tab1 Content"),
+            Tab2=Card("Tab2 Content")
+        )
+        validator = HTMLValidator()
+        cell.recalculate()
+        validator.validate_fragment(cell.contents)
+        error_str = self.validator_str(cell.contents, validator)
+        self.assertTrue(self.is_valid(validator), error_str)
+
 class CellsTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

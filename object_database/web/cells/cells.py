@@ -962,9 +962,10 @@ class CardTitle(Cell):
         super().__init__()
 
         self.children = {"____contents__": Cell.makeCell(inner)}
-        self.contents = HTMLElement.div().add_child(
-            HTMLTextContent("____contents__")
-        ).add_class("card-title")
+        self.contents = str(
+            HTMLElement.div()
+            .add_child(HTMLTextContent('____contents__'))
+        )
 
     def sortsAs(self):
         return self.inner.sortsAs()
@@ -1130,7 +1131,7 @@ class Padding(Cell):
         self.contents = str(
             HTMLElement.span()
             .add_class('px-2')
-            .add_child(HTMLTextContent('&nbsp'))
+            .add_child(HTMLTextContent('&nbsp;'))
         )
 
     def sortsAs(self):
@@ -1268,7 +1269,7 @@ class HeaderBar(Cell):
                     HTMLElement.div()
                     .add_class('flex-container')
                     .set_attribute('style',
-                                   'display:flex;justify-content:flex-center;align-items:baseline;')
+                                   'display:flex;justify-content:center;align-items:baseline;')
                     .add_children(self.leftElements)
                 ),
                 # Center Elements
@@ -1290,7 +1291,7 @@ class HeaderBar(Cell):
                     HTMLElement.div()
                     .add_class('flex-container')
                     .set_attribute('style',
-                                   'display:flex;justify-content:flex-center;align-items:baseline;')
+                                   'display:flex;justify-content:center;align-items:baseline;')
                     .add_children(self.rightElements)
                 )
             )
