@@ -12,10 +12,8 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-from object_database.web.cells import (
-    Cells, Sequence, Container, Subscribed, Span, SubscribedSequence,
-    Card, Text, Slot, ensureSubscribedType, registerDisplay
-)
+from object_database.web.cells import *
+
 from object_database import InMemServer, Schema, Indexed, connect
 from object_database.util import genToken, configureLogging
 from object_database.test_util import (
@@ -23,6 +21,9 @@ from object_database.test_util import (
     autoconfigure_and_start_service_manager,
     log_cells_stats
 )
+
+from py_w3c.validators.html.validator import HTMLValidator
+
 
 import logging
 import unittest
@@ -36,6 +37,70 @@ class Thing:
     k = Indexed(int)
     x = int
 
+class CellsHTMLTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        configureLogging(
+            preamble="cells_html_test",
+            level=logging.INFO
+        )
+        cls._logger = logging.getLogger(__name__)
+
+    def setUp(self):
+        self.token = genToken()
+        self.server = InMemServer(auth_token=self.token)
+        self.server.start()
+
+        self.db = self.server.connect(self.token)
+        self.db.subscribeToSchema(test_schema)
+        self.cells = Cells(self.db)
+
+    @staticmethod
+    def is_valid(validator):
+        """W3C Marks will always give the following
+        two errors on valid fragments of ours:
+        Lack of <head> tag
+        Lack of doctype declaration.
+        Ignore these"""
+        if len(validator.errors) > 2:
+            return False
+        return True
+
+    @staticmethod
+    def validator_str(contents, validator):
+        return 'INVALID HTML\n\n%s\n\n%s' % (contents, validator.errors)
+
+    def test_card_html_valid(self):
+        cell = Card("Some text body")
+        validator = HTMLValidator()
+        cell.recalculate()
+        validator.validate_fragment(cell.contents)
+        error_str = self.validator_str(cell.contents, validator)
+        self.assertTrue(self.is_valid(validator), error_str)
+
+    def test_card_title_html_valid(self):
+        cell = CardTitle("Some title body")
+        validator = HTMLValidator()
+        cell.recalculate()
+        validator.validate_fragment(cell.contents)
+        error_str = self.validator_str(cell.contents, validator)
+        self.assertTrue(self.is_valid(validator), error_str)
+
+    def test_modal_html_valid(self):
+        cell = Modal("Title", "Modal Message")
+        validator = HTMLValidator()
+        cell.recalculate()
+        validator.validate_fragment(cell.contents)
+        error_str = self.validator_str(cell.contents, validator)
+        self.assertTrue(self.is_valid(validator), error_str)
+
+    def test_octicon_html_valid(self):
+        cell = Octicon("which-example")
+        validator = HTMLValidator()
+        cell.recalculate()
+        validator.validate_fragment(cell.contents)
+        error_str = self.validator_str(cell.contents, validator)
+        self.assertTrue(self.is_valid(validator), error_str)
 
 class CellsTests(unittest.TestCase):
     @classmethod
