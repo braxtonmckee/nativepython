@@ -84,6 +84,8 @@ def coerce_value(value, toType):
 
 
 def default_initialize(t):
+    if isinstance(None, t):
+        return None
     if issubclass(t, object_database.object.DatabaseObject):
         raise FieldNotDefaultInitializable(f"Can't default initialize a {t}")
     return t()
