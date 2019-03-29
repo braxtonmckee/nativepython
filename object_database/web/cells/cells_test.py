@@ -215,6 +215,17 @@ class CellsHTMLTests(unittest.TestCase):
         error_str = self.validator_str(cell.contents, validator)
         self.assertTrue(self.is_valid(validator), error_str)
 
+    def test_dropdown_html_valid(self):
+        vals = [1, 2, 3, 4]
+        func = lambda x: x + 1
+        cell = Dropdown("title", vals, func)
+        cell.cells = self.cells
+        validator = HTMLValidator()
+        cell.recalculate()
+        validator.validate_fragment(cell.contents)
+        error_str = self.validator_str(cell.contents, validator)
+        self.assertTrue(self.is_valid(validator), error_str)
+
 class CellsTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
