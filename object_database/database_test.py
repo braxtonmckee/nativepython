@@ -669,12 +669,14 @@ class ObjectDatabaseTests:
 
         t0 = time.time()
         count = 0
-        steps = 0
+        reads = 0
         while time.time() < t0 + 1.0:
             with db.transaction():
                 for i in range(100):
                     count += objects[i].obj.k.value
-                    steps += 1
+                    reads += 2
+
+        print(f"Performed {reads} in {time.time() - t0} seconds")
 
     def test_transactions(self):
         db = self.createNewDb()
