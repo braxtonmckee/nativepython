@@ -173,7 +173,7 @@ class View(object):
                 raise Exception("Please initialize the type object for %s" % str(cls.__qualname__))
 
             if hasattr(cls, '__odb_initializer__'):
-                self._add_to_index(self.getIndexId(cls, " exists", True), identity)
+                self._initialize_index_vals(o, cls, identity)
 
                 cls.__odb_initializer__(o, *args, **kwds)
 
@@ -200,6 +200,10 @@ class View(object):
             raise
 
         return o
+
+    def _initialize_index_vals(self, obj, cls, identity):
+        index_vals = self._compute_index_vals(obj, obj.__schema__._indices.get(cls, {}).keys())
+        self._update_indices(obj, identity, {}, index_vals)
 
     def _defaultConstructInstance(self, cls, o, kwds):
         kwds = dict(kwds)

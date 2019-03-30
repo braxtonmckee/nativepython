@@ -111,6 +111,14 @@ class ThingWithInitHoldingOdbRef:
 
 
 @schema.define
+class ThingWithInitAndInitializableRef:
+    x = Indexed(str)
+
+    def __init__(self):
+        self.x = "Hi"
+
+
+@schema.define
 class ThingWithDicts:
     x = ConstDict(str, bytes)
 
@@ -195,6 +203,7 @@ class ObjectDatabaseTests:
         with db.transaction():
             x = ThingWithInit()
             y = ThingWithInit(1, y=1000)
+            z = ThingWithInitAndInitializableRef() # noqa
 
         with db.view():
             self.assertEqual(x.x, 0)
