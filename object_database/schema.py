@@ -13,24 +13,36 @@
 #   limitations under the License.
 
 from object_database.object import _base, DatabaseObject, Index, Indexed
+from object_database._types import bytesToIndexValue
 from types import FunctionType
-from typed_python import ConstDict, NamedTuple, Tuple, TupleOf
+from typed_python import ConstDict, NamedTuple, Tuple, TupleOf, sha_hash
 
 
 ObjectId = int
 FieldId = int
+IndexValue = Tuple(int,int,int,int,int)
 ObjectFieldId = NamedTuple(objId=int, fieldId=int, isIndexValue=bool)
-IndexId = NamedTuple(fieldId=int, indexValue=bytes)
+IndexId = NamedTuple(fieldId=int, indexValue=IndexValue)
 
 TypeDefinition = NamedTuple(fields=TupleOf(str), indices=TupleOf(str))
 SchemaDefinition = ConstDict(str, TypeDefinition)
 
 FieldDefinition = NamedTuple(schema=str, typename=str, fieldname=str)
 
-
 def SubscribeLazilyByDefault(t):
     t.__object_database_lazy_subscription__ = True
     return t
+
+def index_value_to_hash(value, serializationContext=None):
+    if isinstance(value, _base):
+        return IndexValue((0,0,value._identity,0,0))
+    if isinstance(value, int):
+        return IndexValue((0,value,0,0,0))
+    if isinstance(value, (bytes, str)):
+        key = b"i" + str(value).encode("utf8")
+        if len(key) <= 20:
+            return bytesToIndexValue(key)
+    return bytesToIndexValue(b"h" + sha_hash(value, serializationContext).digest[:-1])
 
 
 class Schema:

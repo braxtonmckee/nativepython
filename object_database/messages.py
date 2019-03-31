@@ -1,5 +1,5 @@
 from typed_python import OneOf, Alternative, ConstDict, TupleOf, Tuple
-from object_database.schema import SchemaDefinition, ObjectId, ObjectFieldId, IndexId, FieldDefinition
+from object_database.schema import SchemaDefinition, ObjectId, ObjectFieldId, IndexId, IndexValue, FieldDefinition
 
 _heartbeatInterval = [5.0]
 
@@ -32,7 +32,7 @@ ClientToServer = Alternative(
     Subscribe={
         'schema': str,
         'typename': OneOf(None, str),
-        'fieldname_and_value': OneOf(None, Tuple(str, bytes)),
+        'fieldname_and_value': OneOf(None, Tuple(str, IndexValue)),
         'isLazy': bool  # load values when we first request them, instead of blocking on all the data.
     },
     Flush={'guid': int},
@@ -49,9 +49,9 @@ ServerToClient = Alternative(
     SubscriptionData={
         'schema': str,
         'typename': OneOf(None, str),
-        'fieldname_and_value': OneOf(None, Tuple(str, bytes)),
+        'fieldname_and_value': OneOf(None, Tuple(str, IndexValue)),
         'values': ConstDict(ObjectFieldId, OneOf(None, bytes)),  # value
-        'index_values': ConstDict(ObjectFieldId, OneOf(None, bytes)),
+        'index_values': ConstDict(ObjectFieldId, OneOf(None, IndexValue)),
         'identities': OneOf(None, TupleOf(ObjectId)),  # the identities in play if this is an index-level subscription
     },
     LazyTransactionPriors={ 'writes': ConstDict(ObjectFieldId, OneOf(None, bytes)) },
@@ -59,20 +59,20 @@ ServerToClient = Alternative(
     LazySubscriptionData={
         'schema': str,
         'typename': OneOf(None, str),
-        'fieldname_and_value': OneOf(None, Tuple(str, bytes)),
+        'fieldname_and_value': OneOf(None, Tuple(str, IndexValue)),
         'identities': TupleOf(ObjectId),
-        'index_values': ConstDict(ObjectFieldId, OneOf(None, bytes))
+        'index_values': ConstDict(ObjectFieldId, OneOf(None, IndexValue))
     },
     SubscriptionComplete={
         'schema': str,
         'typename': OneOf(None, str),
-        'fieldname_and_value': OneOf(None, Tuple(str, bytes)),
+        'fieldname_and_value': OneOf(None, Tuple(str, IndexValue)),
         'tid': int  # marker transaction id
     },
     SubscriptionIncrease={
         'schema': str,
         'typename': str,
-        'fieldname_and_value': Tuple(str, bytes),
+        'fieldname_and_value': Tuple(str, IndexValue),
         'identities': TupleOf(ObjectId)
     },
     Disconnected={},

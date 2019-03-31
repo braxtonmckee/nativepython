@@ -12,13 +12,12 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-from object_database.schema import ObjectFieldId, IndexId, FieldDefinition, ObjectId
+from object_database.schema import ObjectFieldId, IndexId, FieldDefinition, ObjectId, index_value_to_hash
 from object_database.messages import ClientToServer, getHeartbeatInterval
 from object_database.core_schema import core_schema
-from object_database.view import View, Transaction, _cur_view, SerializedDatabaseValue
+from object_database.view import View, Transaction, _cur_view
 from object_database.identity import IdentityProducer
-import object_database.keymapping as keymapping
-from object_database._types import VersionedIdSet
+from object_database._types import VersionedIdSet, VersionedObjects
 
 from typed_python.SerializationContext import SerializationContext
 from typed_python.Codebase import Codebase as TypedPythonCodebase
@@ -43,98 +42,21 @@ TransactionResult = Alternative(
     Disconnected={}
 )
 
-
-class VersionedBase:
-    def _best_version_offset_for(self, version):
-        i = len(self.version_numbers) - 1
-
-        while i >= 0:
-            if self.version_numbers[i] <= version:
-                return i
-            i -= 1
-
-        return None
-
-    def isEmpty(self):
-        return not self.version_numbers
-
-    def validVersionIncoming(self, version_read, transaction_id):
-        if not self.version_numbers:
-            return True
-        top = self.version_numbers[-1]
-        assert transaction_id > version_read
-        return version_read >= top
-
-    def hasVersionInfoNewerThan(self, tid):
-        if not self.version_numbers:
-            return False
-        return tid < self.version_numbers[-1]
-
-    def newestValue(self):
-        if self.version_numbers:
-            return self.valueForVersion(self.version_numbers[-1])
-        else:
-            return self.valueForVersion(None)
-
-
-class VersionedValue(VersionedBase):
-    def __init__(self):
-        self.version_numbers = []
-        self.values = []
-
-    def setVersionedValue(self, version_number, val):
-        self.version_numbers.append(version_number)
-        self.values.append(val)
-
-    def valueForVersion(self, version):
-        i = self._best_version_offset_for(version)
-
-        if i is None:
-            return None
-
-        return self.values[i]
-
-    def wantsGuaranteedLowestIdMoveForward(self):
-        return len(self.version_numbers) != 1 or self.values[0].serializedByteRep is None
-
-    def moveGuaranteedLowestIdForward(self, version_number):
-        if not self.values:
-            return True
-
-        while self.values and self.version_numbers[0] < version_number:
-            if len(self.values) == 1:
-                if self.values[0].serializedByteRep is None:
-                    # this value was deleted and we can just remove this whole entry
-                    return True
-                else:
-                    self.version_numbers[0] = version_number
-            else:
-                if self.version_numbers[1] <= version_number:
-                    self.values.pop(0)
-                    self.version_numbers.pop(0)
-                else:
-                    self.version_numbers[0] = version_number
-
-    def __repr__(self):
-        return "VersionedValue(ids=%s)" % (self.version_numbers,)
-
-
 class FrozenIdSet:
-    def __init__(self, idSet, transactionId):
-        self.idSet = idSet
+    def __init__(self, versionedObjects, key, transactionId):
+        self.versionedObjects = versionedObjects
+        self.fieldId = key.fieldId
+        self.indexValue = key.indexValue
         self.transactionId = transactionId
 
     def toSet(self):
         return set(self)
 
     def __iter__(self):
-        if self.idSet is None:
-            return
-
-        o = self.idSet.lookupFirst(self.transactionId)
+        o = self.versionedObjects.indexLookupFirst(self.fieldId, self.indexValue, self.transactionId)
         while o >= 0:
             yield o
-            o = self.idSet.lookupNext(self.transactionId, o)
+            o = self.versionedObjects.indexLookupNext(self.fieldId, self.indexValue, self.transactionId, o)
 
     def pickAny(self, toAvoid):
         for objId in self:
@@ -143,20 +65,28 @@ class FrozenIdSet:
 
 
 class ManyVersionedObjects:
-    def __init__(self):
+    def __init__(self, serializationContext):
         # for each version number we have outstanding
         self._version_number_refcount = {}
+
+        self.serializationContext = serializationContext
 
         self._min_reffed_version_number = None
 
         # for each version number, the set of keys that are set with it
-        self._version_number_objects = {}
+        self._versioned_objects = VersionedObjects()
 
-        # for each key, a VersionedValue or VersionedIdSet
-        self._versioned_objects = {}
+        self._curTransactionId = 0
+        self._curMinTransactionId = 0
+
+        self._fieldIdToType = {}
+
+    def defineFieldId(self, fieldId, type):
+        self._fieldIdToType[fieldId] = type
+        self._versioned_objects.define(fieldId, type)
 
     def keycount(self):
-        return len(self._versioned_objects)
+        raise NotImplementedError("need to reimplement this")
 
     def versionIncref(self, version_number):
         if version_number not in self._version_number_refcount:
@@ -185,84 +115,51 @@ class ManyVersionedObjects:
                 else:
                     self._min_reffed_version_number = min(self._version_number_refcount)
 
-    def setForVersion(self, key, version_number):
-        if key in self._versioned_objects:
-            return FrozenIdSet(self._versioned_objects[key], version_number)
+                self.cleanup(self._curTransactionId)
 
-        return FrozenIdSet(None, version_number)
+    def setForVersion(self, key, version_number):
+        return FrozenIdSet(self._versioned_objects, key, version_number)
 
     def hasDataForKey(self, key):
-        return key in self._versioned_objects
+        return self.valueForVersion(key, 2**62)[2] >= 0
 
     def valueForVersion(self, key, version_number):
-        return self._versioned_objects[key].valueForVersion(version_number)
-
-    def _object_has_version(self, key, version_number):
-        if version_number not in self._version_number_objects:
-            self._version_number_objects[version_number] = set()
-
-        self._version_number_objects[version_number].add(key)
+        """Get a tuple (Exists, Value, priorVersion) for the current key and version number"""
+        return self._versioned_objects.bestObjectVersion(key.fieldId, key.objId, version_number)
 
     def setVersionedValue(self, key, version_number, serialized_val):
-        self._object_has_version(key, version_number)
+        prior = self._versioned_objects.bestObjectVersion(key.fieldId, key.objId, version_number)
 
-        if key not in self._versioned_objects:
-            self._versioned_objects[key] = VersionedValue()
+        if serialized_val is None:
+            self._versioned_objects.markObjectVersionDeleted(key.fieldId, key.objId, version_number)
+        else:
+            value = self.serializationContext.deserialize(serialized_val, self._fieldIdToType[key.fieldId])
+            self._versioned_objects.addObjectVersion(key.fieldId, key.objId, version_number, value)
 
-        versioned = self._versioned_objects[key]
-
-        initialValue = versioned.newestValue()
-
-        versioned.setVersionedValue(version_number, SerializedDatabaseValue(serialized_val, {}))
-
-        return initialValue
+        return prior
 
     def setVersionedAddsAndRemoves(self, key, version_number, adds, removes):
-        self._object_has_version(key, version_number)
-
-        if key not in self._versioned_objects:
-            self._versioned_objects[key] = VersionedIdSet()
-
-        if adds or removes:
-            self._versioned_objects[key].addTransaction(version_number, adds, removes)
+        self._versioned_objects.indexAdd(key.fieldId, key.indexValue, version_number, adds)
+        self._versioned_objects.indexRemove(key.fieldId, key.indexValue, version_number, removes)
 
     def setVersionedTailValueStringified(self, key, serialized_val):
-        if key not in self._versioned_objects:
-            self._object_has_version(key, -1)
-            self._versioned_objects[key] = VersionedValue()
-            self._versioned_objects[key].setVersionedValue(-1, SerializedDatabaseValue(serialized_val, {}))
+        self.setVersionedValue(key, self._curMinTransactionId, serialized_val)
 
     def updateVersionedAdds(self, key, version_number, adds):
-        self._object_has_version(key, version_number)
-
-        if key not in self._versioned_objects:
-            self._versioned_objects[key] = VersionedIdSet()
-            self._versioned_objects[key].addTransaction(version_number, adds, TupleOf(ObjectId)())
-        else:
-            self._versioned_objects[key].addTransaction(version_number, adds, TupleOf(ObjectId)())
+        self._versioned_objects.indexAdd(key.fieldId, key.indexValue, version_number, adds)
 
     def cleanup(self, curTransactionId):
         """Get rid of old objects we don't need to keep around and increase the min_transaction_id"""
+        self._curTransactionId = curTransactionId
 
         if self._min_reffed_version_number is not None:
-            lowestId = min(self._min_reffed_version_number, curTransactionId)
+            target = min(self._min_reffed_version_number, curTransactionId)
         else:
-            lowestId = curTransactionId
+            target = curTransactionId
 
-        if self._version_number_objects:
-            while min(self._version_number_objects) < lowestId:
-                toCollapse = min(self._version_number_objects)
+        self._curMinTransactionId = target
 
-                for key in self._version_number_objects[toCollapse]:
-                    if key not in self._versioned_objects:
-                        pass
-                    elif self._versioned_objects[key].moveGuaranteedLowestIdForward(lowestId):
-                        del self._versioned_objects[key]
-                    else:
-                        if self._versioned_objects[key].wantsGuaranteedLowestIdMoveForward():
-                            self._object_has_version(key, lowestId)
-
-                del self._version_number_objects[toCollapse]
+        self._versioned_objects.moveGuaranteedLowestIdForward(target)
 
 
 class DatabaseConnection:
@@ -275,9 +172,11 @@ class DatabaseConnection:
         # transaction of what's in the KV store
         self._cur_transaction_num = 0
 
+        self.serializationContext = TypedPythonCodebase.coreSerializationContext().withoutCompression()
+
         # a datastructure that keeps track of all the different versions of the objects
         # we have mapped in.
-        self._versioned_data = ManyVersionedObjects()
+        self._versioned_data = ManyVersionedObjects(self.serializationContext)
 
         # a map from lazy object id to (schema, typename)
         self._lazy_objects = {}
@@ -290,6 +189,7 @@ class DatabaseConnection:
         # when the server has acknowledged the schema and given us a definition
         self._schema_response_events = {}
         self._fields_to_field_ids = Dict(FieldDefinition, int)()
+        self._field_id_to_type = {}
         self._field_id_to_field_def = Dict(int, FieldDefinition)()
 
         self.connectionObject = None
@@ -321,8 +221,6 @@ class DatabaseConnection:
 
         self._largeSubscriptionHeartbeatDelay = 0
 
-        self.serializationContext = TypedPythonCodebase.coreSerializationContext().withoutCompression()
-
         self._logger = logging.getLogger(__name__)
 
     def registerOnTransactionHandler(self, handler):
@@ -331,6 +229,7 @@ class DatabaseConnection:
     def setSerializationContext(self, context):
         assert isinstance(context, SerializationContext), context
         self.serializationContext = context.withoutCompression()
+        self._versioned_data.serializationContext = self.serializationContext
         return self
 
     def serializeFromModule(self, module):
@@ -404,7 +303,7 @@ class DatabaseConnection:
             self.addSchema(type(t).__schema__)
         self.subscribeMultiple([
             (type(t).__schema__.name, type(t).__qualname__,
-                ("_identity", keymapping.index_value_to_hash(t._identity, self.serializationContext)),
+                ("_identity", index_value_to_hash(t._identity, self.serializationContext)),
                 False)
             for t in objects
         ])
@@ -424,7 +323,7 @@ class DatabaseConnection:
             toSubscribe.append((
                 t.__schema__.name,
                 t.__qualname__,
-                (fieldname, keymapping.index_value_to_hash(fieldvalue, self.serializationContext)),
+                (fieldname, index_value_to_hash(fieldvalue, self.serializationContext)),
                 self._lazinessForType(t, lazySubscription))
             )
 
@@ -519,20 +418,6 @@ class DatabaseConnection:
 
                 time.sleep(min(timeout / 20, .25))
         return False
-
-    def _data_key_to_object(self, key):
-        schema_name, typename, identity, fieldname = keymapping.split_data_key(key)
-
-        schema = self._schemas.get(schema_name)
-        if not schema:
-            return None, None
-
-        cls = schema._types.get(typename)
-
-        if cls:
-            return cls.fromIdentity(identity), fieldname
-
-        return None, None
 
     def __str__(self):
         return "DatabaseConnection(%s)" % id(self)
@@ -712,6 +597,17 @@ class DatabaseConnection:
                 for fieldDef, fieldId in msg.mapping.items():
                     self._field_id_to_field_def[fieldId] = fieldDef
                     self._fields_to_field_ids[fieldDef] = fieldId
+
+                    if fieldDef.fieldname == " exists":
+                        self._field_id_to_type[fieldId] = bool
+                    else:
+                        objType = getattr(self._schemas[fieldDef.schema], fieldDef.typename)
+                        if fieldDef.fieldname in objType.__types__:
+                            self._field_id_to_type[fieldId] = objType.__types__[fieldDef.fieldname]
+
+                    if fieldId in self._field_id_to_type:
+                        self._versioned_data.defineFieldId(fieldId, self._field_id_to_type[fieldId])
+
 
                 self._schema_response_events[msg.schema].set()
 
@@ -901,16 +797,18 @@ class DatabaseConnection:
             return self._versioned_data.setForVersion(key, transaction_id)
 
     def _get_versioned_object_data(self, key, transaction_id):
+        """Returns a tuple (Exists, Value|None, most_recent_transaction_id) for the object."""
         with self._lock:
-            if self._versioned_data.hasDataForKey(key):
-                return self._versioned_data.valueForVersion(key, transaction_id)
+            isGoodValAndTransId = self._versioned_data.valueForVersion(key, transaction_id)
+            if isGoodValAndTransId[0]:
+                return isGoodValAndTransId
 
             if self.disconnected.is_set():
                 raise DisconnectedException()
 
             identity = key.objId
             if identity not in self._lazy_objects:
-                return None
+                return (False, None, -1)
 
             event = self._loadLazyObject(identity)
 
@@ -923,7 +821,7 @@ class DatabaseConnection:
             if self._versioned_data.hasDataForKey(key):
                 return self._versioned_data.valueForVersion(key, transaction_id)
 
-            return None
+            return (False, None, -1)
 
     def requestLazyObjects(self, objects):
         with self._lock:
@@ -973,7 +871,7 @@ class DatabaseConnection:
         out_writes = {}
 
         for k, v in key_value.items():
-            out_writes[k] = v.serializedByteRep
+            out_writes[k] = v
             if len(out_writes) > 10000:
                 self._channel.write(
                     ClientToServer.TransactionData(

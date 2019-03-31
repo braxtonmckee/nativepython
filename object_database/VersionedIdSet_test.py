@@ -13,22 +13,13 @@
 #   limitations under the License.
 
 from typed_python import TupleOf
-from object_database._types import VersionedIdSet, VersionedIdSets
+from object_database._types import VersionedIdSet
 
 import unittest
 import numpy
 
 
-class VersionedIdSetsTest(unittest.TestCase):
-    def test_create(self):
-        sets = VersionedIdSets()
-        with self.assertRaises(TypeError):
-            sets.get(0, "blah")
-
-        idSet = sets.get(0, b"blah")
-
-        assert isinstance(idSet, VersionedIdSet)
-
+class VersionedIdSetTest(unittest.TestCase):
     def test_objects_at_transaction(self):
         s = VersionedIdSet()
 

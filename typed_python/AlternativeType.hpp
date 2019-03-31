@@ -138,6 +138,8 @@ private:
 
     std::vector<std::pair<std::string, NamedTuple*> > m_subtypes;
 
+    std::vector<Type*> m_subtypes_concrete;
+
     std::map<std::string, Function*> m_methods;
 
     std::map<std::string, int> m_arg_positions;

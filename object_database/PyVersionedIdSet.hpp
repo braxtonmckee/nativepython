@@ -33,8 +33,6 @@ public:
 
     static PyObject* totalEntryCount(PyVersionedIdSet* self, PyObject* args, PyObject* kwargs);
 
-    static PyObject* wantsGuaranteedLowestIdMoveForward(PyVersionedIdSet* self, PyObject* args, PyObject* kwargs);
-
     static PyObject* moveGuaranteedLowestIdForward(PyVersionedIdSet* self, PyObject* args, PyObject* kwargs);
 
     static int init(PyVersionedIdSet *self, PyObject *args, PyObject *kwds);

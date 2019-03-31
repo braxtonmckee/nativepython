@@ -1,10 +1,52 @@
 #include <Python.h>
 #include <numpy/arrayobject.h>
+#include "../typed_python/AllTypes.hpp"
+#include "../typed_python/PyInstance.hpp"
 #include "PyVersionedObjectsOfType.hpp"
+#include "PyVersionedObjects.hpp"
 #include "PyVersionedIdSet.hpp"
-#include "PyVersionedIdSets.hpp"
+
+PyObject *bytesToIndexValue(PyObject *none, PyObject* args, PyObject* kwargs)
+{
+    static const char *kwlist[] = {"value", NULL};
+    PyObject* bytes;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", (char**)kwlist, &bytes)) {
+        return nullptr;
+    }
+
+    static Type* indexTupleType = Tuple::Make(
+        std::vector<Type*>(
+            {Int64::Make(), Int64::Make(), Int64::Make(), Int64::Make(), Int64::Make()}
+        )
+    );
+
+    if (!PyBytes_Check(bytes)) {
+        PyErr_Format(PyExc_TypeError, "Expected bytes, got %S", bytes);
+        return NULL;
+    }
+
+    char* buffer;
+    Py_ssize_t length;
+
+    if (PyBytes_AsStringAndSize(bytes, &buffer, &length) == -1) {
+        return nullptr;
+    }
+
+    if (length > 20) {
+        PyErr_Format(PyExc_TypeError, "Expected bytes of size less than or equal to 20");
+        return NULL;
+    }
+
+    char actualBuffer[20];
+    memset(actualBuffer, 0, 20);
+    memcpy(actualBuffer, buffer, length);
+
+    return PyInstance::extractPythonObject((instance_ptr)actualBuffer, indexTupleType);
+}
 
 static PyMethodDef module_methods[] = {
+    {"bytesToIndexValue", (PyCFunction)bytesToIndexValue, METH_VARARGS | METH_KEYWORDS, NULL},
     {NULL, NULL}
 };
 
@@ -34,7 +76,7 @@ PyInit__types(void)
     if (PyType_Ready(&PyType_VersionedIdSet) < 0)
         return NULL;
 
-    if (PyType_Ready(&PyType_VersionedIdSets) < 0)
+    if (PyType_Ready(&PyType_VersionedObjects) < 0)
         return NULL;
 
     PyObject *module = PyModule_Create(&moduledef);
@@ -45,8 +87,8 @@ PyInit__types(void)
     Py_INCREF(&PyType_VersionedObjectsOfType);
 
     PyModule_AddObject(module, "VersionedObjectsOfType", (PyObject *)&PyType_VersionedObjectsOfType);
-    PyModule_AddObject(module, "VersionedIdSets", (PyObject *)&PyType_VersionedIdSets);
     PyModule_AddObject(module, "VersionedIdSet", (PyObject *)&PyType_VersionedIdSet);
+    PyModule_AddObject(module, "VersionedObjects", (PyObject *)&PyType_VersionedObjects);
 
     return module;
 }

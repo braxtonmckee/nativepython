@@ -83,9 +83,6 @@ class DatabaseObject(_base):
         return _cur_view.view._exists(self, self._identity)
 
     def __getattr__(self, name):
-        return self.get_field(name)
-
-    def get_field(self, name):
         if name not in self.__types__:
             raise AttributeError("Object of type %s has no field '%s'" % (type(self).__qualname__, name))
 

@@ -655,7 +655,7 @@ class ObjectDatabaseTests:
 
         objects = {}
         with db.transaction():
-            for i in range(100):
+            for i in range(1000):
                 root = Root()
 
                 e = expr.Constant(value=i)
@@ -671,12 +671,12 @@ class ObjectDatabaseTests:
         count = 0
         reads = 0
         while time.time() < t0 + 1.0:
-            with db.transaction():
-                for i in range(100):
+            with db.view():
+                for i in range(300):
                     count += objects[i].obj.k.value
                     reads += 2
 
-        print(f"Performed {reads} in {time.time() - t0} seconds")
+        print(f"Performed {reads/(time.time()-t0)} per second")
 
     def test_transactions(self):
         db = self.createNewDb()
@@ -1459,7 +1459,9 @@ class ObjectDatabaseTests:
                     for x in Counter.lookupAll(k=0):
                         Counter.lookupAny(k=0)
                         ct += 1
+                        time.sleep(0.00001)
                     lastSeen[0] = ct
+
 
             isOK[0] = True
 
@@ -1477,8 +1479,7 @@ class ObjectDatabaseTests:
         for i in range(testSize):
             db1.subscribeToObject(counters[i])
             time.sleep(0.001)
-            if i % 100 == 0:
-                print("wrote", i, "of", testSize, "and last saw", lastSeen[0])
+            print("wrote", i, "of", testSize, "and last saw", lastSeen[0])
 
         t0 = time.time()
         while lastSeen[0] != testSize and time.time() - t0 < 1.0:

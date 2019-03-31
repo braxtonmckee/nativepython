@@ -7,7 +7,6 @@
 
 #include "PyVersionedObjectsOfType.hpp"
 #include "VersionedObjectsOfType.hpp"
-#include "VersionedIdSets.hpp"
 #include "../typed_python/Type.hpp"
 #include "../typed_python/PyInstance.hpp"
 

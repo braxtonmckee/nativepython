@@ -26,19 +26,6 @@ public:
     {
     }
 
-    /****
-    wantsGuaranteedLowestIdMoveForward - should the VersionedIdSets container be calling 'cleanup'
-    on this set?
-
-    Most ID sets don't change very often - as far as we're concerned they
-    just have a single transaction_id and a collection of values. There's no
-    additional compression that happens when we push the lowest ID forward.
-    ******/
-
-    bool wantsGuaranteedLowestIdMoveForward() const {
-        return mObjToTrans.size();
-    }
-
     bool empty() const {
         return mObjToTrans.size() == 0 && mPresentAtLowestId.size() == 0;
     }
@@ -47,12 +34,20 @@ public:
         return mGuaranteedLowestId;
     }
 
-    void moveGuaranteedLowestIdForward(transaction_id t) {
+    transaction_id nextTransactionToMoveForwardOn() const {
+        if (!mTransToObj.size()) {
+            return NO_TRANSACTION;
+        }
+
+        return mTransToObj.begin()->first;
+    }
+
+    transaction_id moveGuaranteedLowestIdForward(transaction_id t) {
         if (t < mGuaranteedLowestId) {
             throw std::runtime_error("Can't ask about a transaction id before the lowest guaranteed id");
         }
         if (t == mGuaranteedLowestId) {
-            return;
+            return nextTransactionToMoveForwardOn();
         }
 
         mGuaranteedLowestId = t;
@@ -80,6 +75,8 @@ public:
 
             mTransToObj.erase(mTransToObj.begin());
         }
+
+        return nextTransactionToMoveForwardOn();
     }
 
 

@@ -14,8 +14,6 @@
 
 from typed_python import serialize, deserialize
 
-from object_database.keymapping import index_value_to_hash
-
 import object_database
 import logging
 import threading
@@ -61,16 +59,6 @@ def revisionConflictRetry(f):
 
     inner.__name__ = f.__name__
     return inner
-
-
-class SerializedDatabaseValue:
-    """A value stored as Json with a python representation."""
-
-    def __init__(self, serializedByteRep, pyRep):
-        assert serializedByteRep is None or isinstance(serializedByteRep, bytes), serializedByteRep
-        self.pyRep = pyRep
-        self.serializedByteRep = serializedByteRep
-
 
 def coerce_value(value, toType):
     if isinstance(value, toType):
@@ -126,7 +114,7 @@ class View(object):
     def transaction_id(self):
         return self._transaction_num
 
-    def getFieldIdFor(self, cls, identity, fieldname, isIndex=False):
+    def getFieldIdFor(self, cls, identity, fieldname):
         fieldId = self._db._fields_to_field_ids[
             object_database.schema.FieldDefinition(
                 schema=cls.__schema__.name,
@@ -134,6 +122,7 @@ class View(object):
                 fieldname=fieldname
             )
         ]
+
         return object_database.schema.ObjectFieldId(objId=identity, fieldId=fieldId)
 
     def getIndexId(self, cls, fieldname, indexValue):
@@ -147,7 +136,7 @@ class View(object):
 
         return object_database.schema.IndexId(
             fieldId=fieldId,
-            indexValue=index_value_to_hash(indexValue, self.serializationContext)
+            indexValue=object_database.schema.index_value_to_hash(indexValue, self.serializationContext)
         )
 
     def _new(self, cls, args, kwds):
@@ -260,16 +249,18 @@ class View(object):
 
             return res
 
-        dbValWithPyrep = self._db._get_versioned_object_data(key, self._transaction_num)
+        goodValAndTransaction = self._db._get_versioned_object_data(key, self._transaction_num)
 
-        if dbValWithPyrep is None:
+        if not goodValAndTransaction[0]:
             if not self._db._isTypeSubscribed(type(obj)):
                 raise Exception("No subscriptions exist for type %s" % obj)
 
             if not obj.exists():
                 raise ObjectDoesntExistException(obj)
 
-        return self.unwrapSerializedDatabaseValue(self.serializationContext, dbValWithPyrep, field_type)
+            return default_initialize(field_type)
+
+        return goodValAndTransaction[1]
 
     @staticmethod
     def unwrapSerializedDatabaseValue(serializationContext, dbValWithPyrep, field_type):
@@ -300,9 +291,7 @@ class View(object):
         if key in self._writes:
             return self._writes[key]
 
-        val = self._db._get_versioned_object_data(key, self._transaction_num)
-
-        return val is not None and val.serializedByteRep is not None
+        return self._db._get_versioned_object_data(key, self._transaction_num)[0]
 
     def _delete(self, obj, identity, field_names):
         if not self._db._isTypeSubscribed(type(obj)):
@@ -484,14 +473,9 @@ class View(object):
         if self._writes:
             def encode(val):
                 if isinstance(val, tuple) and len(val) == 2 and isinstance(val[0], type):
-                    serializedBytes = serialize(val[0], val[1], self.serializationContext)
-                    return SerializedDatabaseValue(
-                        serializedBytes,
-                        {self.serializationContext: val[1]}
-                    )
-
+                    return serialize(val[0], val[1], self.serializationContext)
                 elif val is None:
-                    return SerializedDatabaseValue(val, {})
+                    return None
                 else:
                     assert False, "bad write: %s" % val
 

@@ -180,9 +180,15 @@ Alternative* Alternative::Make(std::string name,
 }
 
 Type* Alternative::pickConcreteSubclassConcrete(instance_ptr data) {
+    if (!m_subtypes_concrete.size()) {
+        for (long k = 0; k < m_subtypes.size(); k++) {
+            m_subtypes_concrete.push_back(ConcreteAlternative::Make(this, k));
+        }
+    }
+
     uint8_t i = which(data);
 
-    return ConcreteAlternative::Make(this, i);
+    return m_subtypes_concrete[i];
 }
 
 void Alternative::constructor(instance_ptr self) {

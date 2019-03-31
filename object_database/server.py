@@ -14,11 +14,10 @@
 
 from object_database.messages import ClientToServer, ServerToClient
 from object_database.identity import IdentityProducer
-from object_database.schema import FieldDefinition, ObjectFieldId, IndexId
+from object_database.schema import FieldDefinition, ObjectFieldId, IndexId, index_value_to_hash
 from object_database.core_schema import core_schema
 from object_database.messages import SchemaDefinition
 from object_database.util import Timer
-from object_database.keymapping import index_value_to_hash
 from typed_python import serialize, deserialize, Class, Member, Dict, makeNamedTuple
 
 from typed_python.Codebase import Codebase as TypedPythonCodebase
@@ -425,8 +424,8 @@ class Server:
             field, val = msg.fieldname_and_value
 
         if field == '_identity':
-            assert val.startswith(b"int_")  # this is the 'hash representation' of an identity.
-            identities = set([int(val[4:])])
+            # single value identities are encoded as integers
+            identities = set([val[1]])
         else:
             fieldId = self._currentTypeMap().lookupOrAdd(schema_name, typename, field)
 

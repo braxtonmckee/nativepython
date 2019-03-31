@@ -64,21 +64,6 @@ PyObject* PyVersionedIdSet::moveGuaranteedLowestIdForward(PyVersionedIdSet* self
     });
 }
 
-PyObject* PyVersionedIdSet::wantsGuaranteedLowestIdMoveForward(PyVersionedIdSet* self, PyObject* args, PyObject* kwargs) {
-    static const char* kwlist[] = { NULL };
-
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "", (char**)kwlist)) {
-        return nullptr;
-    }
-
-    return translateExceptionToPyObject([&]() {
-        return incref(
-            self->idSet->wantsGuaranteedLowestIdMoveForward() ?
-                Py_True : Py_False
-            );
-    });
-}
-
 PyObject* PyVersionedIdSet::lookupOne(PyVersionedIdSet* self, PyObject* args, PyObject* kwargs) {
     static const char* kwlist[] = { "transaction_id", NULL };
     int64_t transaction;
@@ -230,7 +215,6 @@ PyObject* PyVersionedIdSet::addTransaction(PyVersionedIdSet* self, PyObject* arg
 PyMethodDef PyVersionedIdSet_methods[] = {
     {"isActive", (PyCFunction) PyVersionedIdSet::isActive, METH_VARARGS | METH_KEYWORDS},
     {"lookupOne", (PyCFunction) PyVersionedIdSet::lookupOne, METH_VARARGS | METH_KEYWORDS},
-    {"wantsGuaranteedLowestIdMoveForward", (PyCFunction) PyVersionedIdSet::wantsGuaranteedLowestIdMoveForward, METH_VARARGS | METH_KEYWORDS},
     {"moveGuaranteedLowestIdForward", (PyCFunction) PyVersionedIdSet::moveGuaranteedLowestIdForward, METH_VARARGS | METH_KEYWORDS},
     {"addTransaction", (PyCFunction) PyVersionedIdSet::addTransaction, METH_VARARGS | METH_KEYWORDS},
     {"lookupFirst", (PyCFunction) PyVersionedIdSet::lookupFirst, METH_VARARGS | METH_KEYWORDS},
