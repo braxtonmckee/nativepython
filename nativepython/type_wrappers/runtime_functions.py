@@ -20,6 +20,7 @@ Int64 = native_ast.Int64
 Float64 = native_ast.Float64
 Void = native_ast.Void
 
+
 def externalCallTarget(name, output, *inputs):
     return native_ast.CallTarget.Named(
         target=native_ast.NamedCallTarget(

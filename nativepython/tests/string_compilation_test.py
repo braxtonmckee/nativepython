@@ -44,17 +44,20 @@ def callOrExcept(f, *args):
     except Exception as e:
         return ("Exception", str(e))
 
+
 def callOrExceptType(f, *args):
     try:
         return ("Normal", f(*args))
     except Exception as e:
         return ("Exception", str(type(e)))
 
+
 def callOrExceptNoType(f, *args):
     try:
         return ("Normal", f(*args))
-    except Exception as e:
+    except Exception:
         return ("Exception", )
+
 
 class TestStringCompilation(unittest.TestCase):
     def test_string_passing_and_refcounting(self):
@@ -138,7 +141,6 @@ class TestStringCompilation(unittest.TestCase):
             s_from_code = f()
 
             self.assertEqual(s, s_from_code, (repr(s), repr(s_from_code)))
-
 
     def test_string_getitem(self):
         @Compiled
@@ -384,16 +386,16 @@ class TestStringCompilation(unittest.TestCase):
             self.assertEqual(result, baseline, "{} -> {}".format(s, result))
             result = callOrExceptNoType(c_split_initialized, s, ["a", "b", "c"])
             self.assertEqual(result, baseline, "{} -> {}".format(s, result))
-            for m in range(-2,10):
+            for m in range(-2, 10):
                 result = callOrExceptNoType(c_split_3max, s, m)
                 baseline = callOrExceptNoType(lambda: s.split(maxsplit=m))
                 self.assertEqual(result, baseline, "{},{}-> {}".format(s, m, result))
 
-            for sep in ["", "j", "s", "d" ,"t", " ", "as", "jks"]:
+            for sep in ["", "j", "s", "d", "t", " ", "as", "jks"]:
                 result = callOrExceptNoType(c_split_3, s, sep)
                 baseline = callOrExceptNoType(lambda: s.split(sep))
                 self.assertEqual(result, baseline, "{},{}-> {}".format(s, sep, result))
-                for m in range(-2,10):
+                for m in range(-2, 10):
                     result = callOrExceptNoType(c_split, s, sep, m)
                     baseline = callOrExceptNoType(lambda: s.split(sep, m))
                     self.assertEqual(result, baseline, "{},{},{}-> {}".format(s, sep, m, result))
