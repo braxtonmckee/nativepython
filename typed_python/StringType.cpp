@@ -165,7 +165,7 @@ uint32_t getpoint(String::layout *l, uint64_t i) {
     return 0;
 }
 
-int64_t String::find(layout *l, layout *sub, int64_t start, int64_t end) {
+int64_t String::find(layout *l, layout *sub, int64_t start, int64_t stop) {
     if (!l || !l->pointcount) {
         if (!sub || !sub->pointcount)
             return start > 0 ? -1 : 0;
@@ -175,22 +175,22 @@ int64_t String::find(layout *l, layout *sub, int64_t start, int64_t end) {
         start += l->pointcount;
         if (start < 0) start = 0;
     }
-    if (end < 0) {
-        end += l->pointcount;
-        if (end < 0) end = 0;
+    if (stop < 0) {
+        stop += l->pointcount;
+        if (stop < 0) stop = 0;
     }
-    if (end < start || start > l->pointcount)
+    if (stop < start || start > l->pointcount)
         return -1;
     if (!sub || !sub->pointcount)
         return start >= 0 ? start : 0;
 
-    if (end > l->pointcount)
-        end = l->pointcount;
-    end -= (sub->pointcount - 1);
-    if (start < 0 || end < 0 || start >= end || sub->pointcount > l->pointcount || start > l->pointcount - sub->pointcount)
+    if (stop > l->pointcount)
+        stop = l->pointcount;
+    stop -= (sub->pointcount - 1);
+    if (start < 0 || stop < 0 || start >= stop || sub->pointcount > l->pointcount || start > l->pointcount - sub->pointcount)
         return -1;
 
-    for (int64_t i = start; i < end; i++) {
+    for (int64_t i = start; i < stop; i++) {
         bool match = true;
         for (int64_t j = 0; j < sub->pointcount; j++) {
             if (getpoint(l, i+j) != getpoint(sub, j)) {
@@ -203,6 +203,93 @@ int64_t String::find(layout *l, layout *sub, int64_t start, int64_t end) {
     }
 
     return -1;
+}
+
+void String::split_2(ListOfType::layout* outList, layout* l) {
+    split_3max(outList, l, -1);
+}
+
+void String::split_3max(ListOfType::layout* outList, layout* l, int64_t max) {
+    if (!outList)
+        throw std::invalid_argument("missing return argument");
+    static auto listofstring = ListOfType::Make(String::Make());
+    listofstring->resize((instance_ptr)&outList, 0, 0);
+
+    if (!l || !l->pointcount)
+        ;
+    else if (max == 0) {
+        // unexpected standard behavior:
+        //   "   abc   ".split(maxsplit=0) = "abc   "  *** not "abc" nor "   abc   " ***
+        int64_t cur = 0;
+        while (cur < l->pointcount && uprops[getpoint(l, cur)] & Uprops_SPACE)
+            cur++;
+        String::layout* remainder = String::getsubstr(l, cur, l->pointcount);
+        listofstring->append((instance_ptr)&outList, (instance_ptr)&remainder);
+    }
+    else {
+        int64_t cur = 0;
+        int64_t count = 0;
+        while (cur < l->pointcount) {
+            int64_t match = cur;
+            while (!(uprops[getpoint(l, match)] & Uprops_SPACE)) {
+                match++;
+                if (match >= l->pointcount) {
+                    match = -1;
+                    break;
+                }
+            }
+            if (match < 0)
+                break;
+            if (cur != match) {
+                String::layout* piece = String::getsubstr(l, cur, match);
+                listofstring->append((instance_ptr)&outList, (instance_ptr)&piece);
+                count++;
+            }
+            cur = match + 1;
+            if (max >= 0 && count >= max)
+                break;
+        }
+        while (cur < l->pointcount && uprops[getpoint(l, cur)] & Uprops_SPACE)
+            cur++;
+        if (cur < l->pointcount) {
+            String::layout* remainder = String::getsubstr(l, cur, l->pointcount);
+            listofstring->append((instance_ptr)&outList, (instance_ptr)&remainder);
+        }
+    }
+}
+
+void String::split_3(ListOfType::layout* outList, layout* l, layout* sep) {
+    split(outList, l, sep, -1);
+}
+
+void String::split(ListOfType::layout* outList, layout* l, layout* sep, int64_t max) {
+    if (!outList)
+        throw std::invalid_argument("missing return argument");
+    static auto listofstring = ListOfType::Make(String::Make());
+    listofstring->resize((instance_ptr)&outList, 0, 0);
+
+    if (!sep || !sep->pointcount)
+        throw std::invalid_argument("ValueError: empty separator");
+    else if (!l || !l->pointcount || max == 0)
+        listofstring->append((instance_ptr)&outList, (instance_ptr)&l);
+    else {
+        int64_t cur = 0;
+        int64_t count = 0;
+        while (cur < l->pointcount) {
+            int64_t match = String::find_3(l, sep, cur);
+            if (match < 0)
+                break;
+            String::layout* piece = String::getsubstr(l, cur, match);
+
+            listofstring->append((instance_ptr)&outList, (instance_ptr)&piece);
+            cur = match + sep->pointcount;
+            count++;
+            if (max >= 0 && count >= max)
+                break;
+        }
+        String::layout* remainder = String::getsubstr(l, cur, l->pointcount);
+        listofstring->append((instance_ptr)&outList, (instance_ptr)&remainder);
+    }
 }
 
 bool String::isalpha(layout *l) {
@@ -371,6 +458,46 @@ String::layout* String::getitem(layout* lhs, int64_t offset) {
 
     return new_layout;
 }
+
+String::layout* String::getsubstr(layout* l, int64_t start, int64_t stop) {
+    if (!l) {
+        return l;
+    }
+
+    if (start < 0) {
+        start += l->pointcount;
+        if (start < 0) start = 0;
+    }
+    if (stop < 0) {
+        stop += l->pointcount;
+        if (stop < 0) stop = 0;
+    }
+    if (stop < start || start > l->pointcount)
+        stop = start = 0;
+
+    if (stop > l->pointcount)
+        stop = l->pointcount;
+
+//    if (!alwaysAlloc && start==0  && stop == l->pointcount) {
+//        l->refcount++;
+//        return l;
+//    }
+
+    size_t datalength = stop - start;
+    size_t datasize = datalength * l->bytes_per_codepoint;
+    int64_t new_byteCount = sizeof(layout) + datasize;
+
+    layout* new_layout = (layout*)malloc(new_byteCount);
+    new_layout->refcount = 1;
+    new_layout->hash_cache = -1;
+    new_layout->bytes_per_codepoint = l->bytes_per_codepoint;
+    new_layout->pointcount = datalength;
+
+    memcpy(new_layout->data, l->data + start * l->bytes_per_codepoint, datalength);
+
+    return new_layout;
+}
+
 
 int64_t String::bytesPerCodepointRequiredForUtf8(const uint8_t* utf8Str, int64_t length) {
     int64_t bytes_per_codepoint = 1;

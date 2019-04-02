@@ -25,16 +25,16 @@ PyObject *MakeTupleOrListOfType(PyObject* nullValue, PyObject* args, bool isTupl
 
     if (types.size() != 1) {
         if (isTuple) {
-            PyErr_SetString(PyExc_TypeError, "TupleOf takes 1 positional argument.");
+            PyErr_SetString(PyExc_TypeError, "TupleOfType takes 1 positional argument.");
         } else {
-            PyErr_SetString(PyExc_TypeError, "ListOf takes 1 positional argument.");
+            PyErr_SetString(PyExc_TypeError, "ListOfType takes 1 positional argument.");
         }
         return NULL;
     }
 
     return incref(
         (PyObject*)PyInstance::typeObj(
-            isTuple ? (TupleOrListOf*)TupleOf::Make(types[0]) : (TupleOrListOf*)ListOf::Make(types[0])
+            isTuple ? (TupleOrListOfType*)TupleOfType::Make(types[0]) : (TupleOrListOfType*)ListOfType::Make(types[0])
             )
         );
 }
@@ -644,13 +644,13 @@ PyObject *refcount(PyObject* nullValue, PyObject* args) {
 
     if (actualType->getTypeCategory() == Type::TypeCategory::catTupleOf) {
         return PyLong_FromLong(
-            ((::TupleOf*)actualType)->refcount(((PyInstance*)a1)->dataPtr())
+            ((::TupleOfType*)actualType)->refcount(((PyInstance*)a1)->dataPtr())
             );
     }
 
     if (actualType->getTypeCategory() == Type::TypeCategory::catListOf) {
         return PyLong_FromLong(
-            ((::ListOf*)actualType)->refcount(((PyInstance*)a1)->dataPtr())
+            ((::ListOfType*)actualType)->refcount(((PyInstance*)a1)->dataPtr())
             );
     }
 

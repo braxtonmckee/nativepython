@@ -1,16 +1,16 @@
 #include "AllTypes.hpp"
 
-bool TupleOrListOf::isBinaryCompatibleWithConcrete(Type* other) {
+bool TupleOrListOfType::isBinaryCompatibleWithConcrete(Type* other) {
     if (other->getTypeCategory() != m_typeCategory) {
         return false;
     }
 
-    TupleOf* otherO = (TupleOf*)other;
+    TupleOfType* otherO = (TupleOfType*)other;
 
     return m_element_type->isBinaryCompatibleWith(otherO->m_element_type);
 }
 
-void TupleOrListOf::repr(instance_ptr self, ReprAccumulator& stream) {
+void TupleOrListOfType::repr(instance_ptr self, ReprAccumulator& stream) {
     PushReprState isNew(stream, self);
 
     if (!isNew) {
@@ -38,7 +38,7 @@ void TupleOrListOf::repr(instance_ptr self, ReprAccumulator& stream) {
     stream << (m_is_tuple ? ")" : "]");
 }
 
-int32_t TupleOrListOf::hash32(instance_ptr left) {
+int32_t TupleOrListOfType::hash32(instance_ptr left) {
     if (!(*(layout**)left)) {
         return 0x123;
     }
@@ -62,7 +62,7 @@ int32_t TupleOrListOf::hash32(instance_ptr left) {
     return (*(layout**)left)->hash_cache;
 }
 
-bool TupleOrListOf::cmp(instance_ptr left, instance_ptr right, int pyComparisonOp) {
+bool TupleOrListOfType::cmp(instance_ptr left, instance_ptr right, int pyComparisonOp) {
     if (!(*(layout**)left) && (*(layout**)right)) {
         return cmpResultToBoolForPyOrdering(pyComparisonOp, -1);
     }
@@ -124,38 +124,38 @@ bool TupleOrListOf::cmp(instance_ptr left, instance_ptr right, int pyComparisonO
 }
 
 // static
-TupleOf* TupleOf::Make(Type* elt) {
+TupleOfType* TupleOfType::Make(Type* elt) {
     static std::mutex guard;
 
     std::lock_guard<std::mutex> lock(guard);
 
-    static std::map<Type*, TupleOf*> m;
+    static std::map<Type*, TupleOfType*> m;
 
     auto it = m.find(elt);
     if (it == m.end()) {
-        it = m.insert(std::make_pair(elt, new TupleOf(elt))).first;
+        it = m.insert(std::make_pair(elt, new TupleOfType(elt))).first;
     }
 
     return it->second;
 }
 
 // static
-ListOf* ListOf::Make(Type* elt) {
+ListOfType* ListOfType::Make(Type* elt) {
     static std::mutex guard;
 
     std::lock_guard<std::mutex> lock(guard);
 
-    static std::map<Type*, ListOf*> m;
+    static std::map<Type*, ListOfType*> m;
 
     auto it = m.find(elt);
     if (it == m.end()) {
-        it = m.insert(std::make_pair(elt, new ListOf(elt))).first;
+        it = m.insert(std::make_pair(elt, new ListOfType(elt))).first;
     }
 
     return it->second;
 }
 
-int64_t TupleOrListOf::count(instance_ptr self) const {
+int64_t TupleOrListOfType::count(instance_ptr self) const {
     if (!(*(layout**)self)) {
         return 0;
     }
@@ -163,7 +163,7 @@ int64_t TupleOrListOf::count(instance_ptr self) const {
     return (*(layout**)self)->count;
 }
 
-int64_t TupleOrListOf::refcount(instance_ptr self) const {
+int64_t TupleOrListOfType::refcount(instance_ptr self) const {
     if (!(*(layout**)self)) {
         return 0;
     }
@@ -171,11 +171,11 @@ int64_t TupleOrListOf::refcount(instance_ptr self) const {
     return (*(layout**)self)->refcount;
 }
 
-void TupleOrListOf::constructor(instance_ptr self) {
+void TupleOrListOfType::constructor(instance_ptr self) {
     constructor(self, 0, [](instance_ptr i, int64_t k) {});
 }
 
-void TupleOrListOf::destroy(instance_ptr selfPtr) {
+void TupleOrListOfType::destroy(instance_ptr selfPtr) {
     layout_ptr& self = *(layout_ptr*)selfPtr;
 
     if (!self) {
@@ -189,14 +189,17 @@ void TupleOrListOf::destroy(instance_ptr selfPtr) {
     }
 }
 
-void TupleOrListOf::copy_constructor(instance_ptr self, instance_ptr other) {
+void TupleOrListOfType::copy_constructor(instance_ptr self, instance_ptr other) {
     (*(layout**)self) = (*(layout**)other);
     if (*(layout**)self) {
         (*(layout**)self)->refcount++;
     }
 }
 
-void TupleOrListOf::assign(instance_ptr self, instance_ptr other) {
+void TupleOrListOfType::assign(instance_ptr self, instance_ptr other) {
+    if (self == other)
+        return;
+
     layout* old = (*(layout**)self);
 
     (*(layout**)self) = (*(layout**)other);
@@ -208,7 +211,7 @@ void TupleOrListOf::assign(instance_ptr self, instance_ptr other) {
     destroy((instance_ptr)&old);
 }
 
-void TupleOrListOf::reserve(instance_ptr self, size_t target) {
+void TupleOrListOfType::reserve(instance_ptr self, size_t target) {
     layout_ptr& self_layout = *(layout_ptr*)self;
 
     if (target < self_layout->count) {
@@ -221,19 +224,19 @@ void TupleOrListOf::reserve(instance_ptr self, size_t target) {
 
 
 //static
-void ListOf::copyListObject(instance_ptr target, instance_ptr src) {
+void ListOfType::copyListObject(instance_ptr target, instance_ptr src) {
     constructor(target, count(src), [&](instance_ptr tgt, long k) {
         return m_element_type->copy_constructor(tgt, eltPtr(src,k));
     });
 }
 
-void ListOf::setSizeUnsafe(instance_ptr self, size_t count) {
+void ListOfType::setSizeUnsafe(instance_ptr self, size_t count) {
     layout_ptr& self_layout = *(layout_ptr*)self;
 
     self_layout->count = count;
 }
 
-void ListOf::append(instance_ptr self, instance_ptr other) {
+void ListOfType::append(instance_ptr self, instance_ptr other) {
     layout_ptr& self_layout = *(layout_ptr*)self;
 
     if (!self_layout) {
@@ -257,12 +260,12 @@ void ListOf::append(instance_ptr self, instance_ptr other) {
     }
 }
 
-size_t ListOf::reserved(instance_ptr self) {
+size_t ListOfType::reserved(instance_ptr self) {
     layout_ptr& self_layout = *(layout_ptr*)self;
 
     return self_layout->reserved;
 }
-void ListOf::remove(instance_ptr self, size_t index) {
+void ListOfType::remove(instance_ptr self, size_t index) {
     layout_ptr& self_layout = *(layout_ptr*)self;
 
     getEltType()->destroy(eltPtr(self, index));
@@ -270,7 +273,7 @@ void ListOf::remove(instance_ptr self, size_t index) {
     self_layout->count--;
 }
 
-void ListOf::resize(instance_ptr self, size_t count) {
+void ListOfType::resize(instance_ptr self, size_t count) {
     layout_ptr& self_layout = *(layout_ptr*)self;
 
     if (count > self_layout->reserved) {
@@ -287,7 +290,7 @@ void ListOf::resize(instance_ptr self, size_t count) {
     }
 }
 
-void ListOf::resize(instance_ptr self, size_t count, instance_ptr value) {
+void ListOfType::resize(instance_ptr self, size_t count, instance_ptr value) {
     layout_ptr& self_layout = *(layout_ptr*)self;
 
     if (count > self_layout->reserved) {

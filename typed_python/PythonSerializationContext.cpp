@@ -483,12 +483,12 @@ void PythonSerializationContext::serializeNativeType(Type* nativeType, Serializa
     }
 
     if (nativeType->getTypeCategory() == Type::TypeCategory::catTupleOf) {
-        serializeNativeType(((TupleOf*)nativeType)->getEltType(), b);
+        serializeNativeType(((TupleOfType*)nativeType)->getEltType(), b);
         return;
     }
 
     if (nativeType->getTypeCategory() == Type::TypeCategory::catListOf) {
-        serializeNativeType(((ListOf*)nativeType)->getEltType(), b);
+        serializeNativeType(((ListOfType*)nativeType)->getEltType(), b);
         return;
     }
 
@@ -662,13 +662,13 @@ Type* PythonSerializationContext::deserializeNativeTypeUncached(DeserializationB
     }
 
     if (category == Type::TypeCategory::catTupleOf) {
-        return ::TupleOf::Make(
+        return ::TupleOfType::Make(
             deserializeNativeType(b)
             );
     }
 
     if (category == Type::TypeCategory::catListOf) {
-        return ::ListOf::Make(
+        return ::ListOfType::Make(
             deserializeNativeType(b)
             );
     }

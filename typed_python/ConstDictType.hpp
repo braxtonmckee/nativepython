@@ -75,8 +75,8 @@ public:
 
     void addDicts(instance_ptr lhs, instance_ptr rhs, instance_ptr output) const;
 
-    TupleOf* tupleOfKeysType() const {
-        return TupleOf::Make(m_key);
+    TupleOfType* tupleOfKeysType() const {
+        return TupleOfType::Make(m_key);
     }
 
     void subtractTupleOfKeysFromDict(instance_ptr lhs, instance_ptr rhs, instance_ptr output) const;

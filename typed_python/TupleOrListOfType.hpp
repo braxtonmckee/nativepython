@@ -2,8 +2,8 @@
 
 #include "Type.hpp"
 
-class TupleOrListOf : public Type {
-protected:
+class TupleOrListOfType : public Type {
+public:
     class layout {
     public:
         std::atomic<int64_t> refcount;
@@ -16,7 +16,7 @@ protected:
     typedef layout* layout_ptr;
 
 public:
-    TupleOrListOf(Type* type, bool isTuple) :
+    TupleOrListOfType(Type* type, bool isTuple) :
             Type(isTuple ? TypeCategory::catTupleOf : TypeCategory::catListOf),
             m_element_type(type),
             m_is_tuple(isTuple)
@@ -40,7 +40,7 @@ public:
     }
 
     void _forwardTypesMayHaveChanged() {
-        m_name = (m_is_tuple ? "TupleOf(" : "ListOf(") + m_element_type->name() + ")";
+        m_name = (m_is_tuple ? "TupleOfType(" : "ListOfType(") + m_element_type->name() + ")";
     }
 
     template<class buf_t>
@@ -183,13 +183,13 @@ protected:
     bool m_is_tuple;
 };
 
-class ListOf : public TupleOrListOf {
+class ListOfType : public TupleOrListOfType {
 public:
-    ListOf(Type* type) : TupleOrListOf(type, false)
+    ListOfType(Type* type) : TupleOrListOfType(type, false)
     {
     }
 
-    static ListOf* Make(Type* elt);
+    static ListOfType* Make(Type* elt);
 
     void setSizeUnsafe(instance_ptr self, size_t count);
 
@@ -206,12 +206,12 @@ public:
     void copyListObject(instance_ptr target, instance_ptr src);
 };
 
-class TupleOf : public TupleOrListOf {
+class TupleOfType : public TupleOrListOfType {
 public:
-    TupleOf(Type* type) : TupleOrListOf(type, true)
+    TupleOfType(Type* type) : TupleOrListOfType(type, true)
     {
     }
 
-    static TupleOf* Make(Type* elt);
+    static TupleOfType* Make(Type* elt);
 };
 

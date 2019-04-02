@@ -13,13 +13,10 @@
 #   limitations under the License.
 
 from nativepython.type_wrappers.refcounted_wrapper import RefcountedWrapper
-from typed_python import Int64
-from typed_python import Bool
+from typed_python import Int64, Bool, String, NoneType
 
 import nativepython.type_wrappers.runtime_functions as runtime_functions
 from nativepython.type_wrappers.bound_compiled_method_wrapper import BoundCompiledMethodWrapper
-
-from typed_python import String
 
 import nativepython.native_ast as native_ast
 import nativepython
@@ -168,7 +165,7 @@ class StringWrapper(RefcountedWrapper):
     ])
 
     def convert_attribute(self, context, instance, attr):
-        if attr in ("find",) or attr in self._str_methods or attr in self._bool_methods:
+        if attr in ("find", "split") or attr in self._str_methods or attr in self._bool_methods:
             return instance.changeType(BoundCompiledMethodWrapper(self, attr))
 
         return super().convert_attribute(context, instance, attr)
@@ -228,6 +225,51 @@ class StringWrapper(RefcountedWrapper):
                             args[0].nonref_expr.cast(VoidPtr),
                             args[1].nonref_expr,
                             args[2].nonref_expr
+                        )
+                    )
+                )
+        elif methodname == "split":
+            if len(args) == 2:
+                return context.push(
+                    NoneType,
+                    lambda Ref: Ref.expr.store(
+                        runtime_functions.string_split_2.call(
+                            args[0].nonref_expr.cast(VoidPtr),
+                            args[1].nonref_expr.cast(VoidPtr)
+                        )
+                    )
+                )
+            elif len(args) == 3 and args[2].expr_type.typeRepresentation == String:
+                return context.push(
+                    NoneType,
+                    lambda Ref: Ref.expr.store(
+                        runtime_functions.string_split_3.call(
+                            args[0].nonref_expr.cast(VoidPtr),
+                            args[1].nonref_expr.cast(VoidPtr),
+                            args[2].nonref_expr.cast(VoidPtr)
+                        )
+                    )
+                )
+            elif len(args) == 3 and args[2].expr_type.typeRepresentation == Int64:
+                return context.push(
+                    NoneType,
+                    lambda Ref: Ref.expr.store(
+                        runtime_functions.string_split_3max.call(
+                            args[0].nonref_expr.cast(VoidPtr),
+                            args[1].nonref_expr.cast(VoidPtr),
+                            args[2].nonref_expr
+                        )
+                    )
+                )
+            elif len(args) == 4:
+                return context.push(
+                    NoneType,
+                    lambda Ref: Ref.expr.store(
+                        runtime_functions.string_split.call(
+                            args[0].nonref_expr.cast(VoidPtr),
+                            args[1].nonref_expr.cast(VoidPtr),
+                            args[2].nonref_expr.cast(VoidPtr),
+                            args[3].nonref_expr
                         )
                     )
                 )

@@ -1,15 +1,15 @@
 #include "PyTupleOrListOfInstance.hpp"
 
-TupleOrListOf* PyTupleOrListOfInstance::type() {
-    return (TupleOrListOf*)extractTypeFrom(((PyObject*)this)->ob_type);
+TupleOrListOfType* PyTupleOrListOfInstance::type() {
+    return (TupleOrListOfType*)extractTypeFrom(((PyObject*)this)->ob_type);
 }
 
-TupleOf* PyTupleOfInstance::type() {
-    return (TupleOf*)extractTypeFrom(((PyObject*)this)->ob_type);
+TupleOfType* PyTupleOfInstance::type() {
+    return (TupleOfType*)extractTypeFrom(((PyObject*)this)->ob_type);
 }
 
-ListOf* PyListOfInstance::type() {
-    return (ListOf*)extractTypeFrom(((PyObject*)this)->ob_type);
+ListOfType* PyListOfInstance::type() {
+    return (ListOfType*)extractTypeFrom(((PyObject*)this)->ob_type);
 }
 
 bool PyTupleOrListOfInstance::pyValCouldBeOfTypeConcrete(modeled_type* type, PyObject* pyRepresentation) {
@@ -134,7 +134,7 @@ PyObject* PyListOfInstance::listSetSizeUnsafe(PyObject* o, PyObject* args) {
 
 
 template<class dest_t, class source_t>
-void constructTupleOrListInst(TupleOrListOf* tupT, instance_ptr tgt, size_t count, uint8_t* source_data) {
+void constructTupleOrListInst(TupleOrListOfType* tupT, instance_ptr tgt, size_t count, uint8_t* source_data) {
     tupT->constructor(tgt, count,
         [&](uint8_t* eltPtr, int64_t k) {
             ((dest_t*)eltPtr)[0] = ((source_t*)source_data)[k];
@@ -143,7 +143,7 @@ void constructTupleOrListInst(TupleOrListOf* tupT, instance_ptr tgt, size_t coun
 }
 
 template<class dest_t>
-bool constructTupleOrListInstFromNumpy(TupleOrListOf* tupT, instance_ptr tgt, size_t size, uint8_t* data, int numpyType) {
+bool constructTupleOrListInstFromNumpy(TupleOrListOfType* tupT, instance_ptr tgt, size_t size, uint8_t* data, int numpyType) {
     if (numpyType == NPY_FLOAT64) {
         constructTupleOrListInst<dest_t, double>(tupT, tgt, size, data);
     } else if (numpyType == NPY_FLOAT32) {
@@ -172,7 +172,7 @@ bool constructTupleOrListInstFromNumpy(TupleOrListOf* tupT, instance_ptr tgt, si
 
     return true;
 }
-void PyTupleOrListOfInstance::copyConstructFromPythonInstanceConcrete(TupleOrListOf* tupT, instance_ptr tgt, PyObject* pyRepresentation, bool isExplicit) {
+void PyTupleOrListOfInstance::copyConstructFromPythonInstanceConcrete(TupleOrListOfType* tupT, instance_ptr tgt, PyObject* pyRepresentation, bool isExplicit) {
     if (PyArray_Check(pyRepresentation)) {
         if (!PyArray_ISBEHAVED_RO(pyRepresentation)) {
             throw std::logic_error("Can't convert a numpy array that's not contiguous and in machine-native byte order.");
@@ -688,7 +688,7 @@ PyMethodDef* PyListOfInstance::typeMethodsConcrete() {
     };
 }
 
-void PyListOfInstance::constructFromPythonArgumentsConcrete(ListOf* t, uint8_t* data, PyObject* args, PyObject* kwargs) {
+void PyListOfInstance::constructFromPythonArgumentsConcrete(ListOfType* t, uint8_t* data, PyObject* args, PyObject* kwargs) {
     if (PyTuple_Size(args) == 1 && !kwargs) {
         PyObject* arg = PyTuple_GetItem(args, 0);
         Type* argType = extractTypeFrom(arg->ob_type);
@@ -697,7 +697,7 @@ void PyListOfInstance::constructFromPythonArgumentsConcrete(ListOf* t, uint8_t* 
             //following python semantics, this needs to produce a new object
             //that's a copy of the original list. We can't just incref it and return
             //the original object because it has state.
-            ListOf* listT = (ListOf*)t;
+            ListOfType* listT = (ListOfType*)t;
             listT->copyListObject(data, ((PyInstance*)arg)->dataPtr());
             return;
         }
@@ -706,7 +706,7 @@ void PyListOfInstance::constructFromPythonArgumentsConcrete(ListOf* t, uint8_t* 
     PyInstance::constructFromPythonArgumentsConcrete(t, data, args, kwargs);
 }
 
-void PyTupleOrListOfInstance::mirrorTypeInformationIntoPyTypeConcrete(TupleOrListOf* inType, PyTypeObject* pyType) {
+void PyTupleOrListOfInstance::mirrorTypeInformationIntoPyTypeConcrete(TupleOrListOfType* inType, PyTypeObject* pyType) {
     //expose 'ElementType' as a member of the type object
     PyDict_SetItemString(
         pyType->tp_dict,

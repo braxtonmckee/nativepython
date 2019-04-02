@@ -4,9 +4,9 @@
 
 class PyTupleOrListOfInstance : public PyInstance {
 public:
-    typedef TupleOrListOf modeled_type;
+    typedef TupleOrListOfType modeled_type;
 
-    TupleOrListOf* type();
+    TupleOrListOfType* type();
 
     PyObject* sq_item_concrete(Py_ssize_t ix);
 
@@ -14,7 +14,7 @@ public:
 
     PyObject* mp_subscript_concrete(PyObject* item);
 
-    static void copyConstructFromPythonInstanceConcrete(TupleOrListOf* tupT, instance_ptr tgt, PyObject* pyRepresentation, bool isExplicit);
+    static void copyConstructFromPythonInstanceConcrete(TupleOrListOfType* tupT, instance_ptr tgt, PyObject* pyRepresentation, bool isExplicit);
 
     PyObject* pyOperatorConcrete(PyObject* rhs, const char* op, const char* opErr);
 
@@ -26,14 +26,14 @@ public:
 
     static bool pyValCouldBeOfTypeConcrete(modeled_type* type, PyObject* pyRepresentation);
 
-    static void mirrorTypeInformationIntoPyTypeConcrete(TupleOrListOf* inType, PyTypeObject* pyType);
+    static void mirrorTypeInformationIntoPyTypeConcrete(TupleOrListOfType* inType, PyTypeObject* pyType);
 };
 
 class PyListOfInstance : public PyTupleOrListOfInstance {
 public:
-    typedef ListOf modeled_type;
+    typedef ListOfType modeled_type;
 
-    ListOf* type();
+    ListOfType* type();
 
     static PyObject* listAppend(PyObject* o, PyObject* args);
 
@@ -55,9 +55,9 @@ public:
 
     static PyMethodDef* typeMethodsConcrete();
 
-    static void constructFromPythonArgumentsConcrete(ListOf* t, uint8_t* data, PyObject* args, PyObject* kwargs);
+    static void constructFromPythonArgumentsConcrete(ListOfType* t, uint8_t* data, PyObject* args, PyObject* kwargs);
 
-    static bool compare_to_python_concrete(ListOf* listT, instance_ptr self, PyObject* other, bool exact, int pyComparisonOp) {
+    static bool compare_to_python_concrete(ListOfType* listT, instance_ptr self, PyObject* other, bool exact, int pyComparisonOp) {
         auto convert = [&](char cmpValue) { return cmpResultToBoolForPyOrdering(pyComparisonOp, cmpValue); };
 
         if (!PyList_Check(other)) {
@@ -83,13 +83,13 @@ public:
 
 class PyTupleOfInstance : public PyTupleOrListOfInstance {
 public:
-    typedef TupleOf modeled_type;
+    typedef TupleOfType modeled_type;
 
-    TupleOf* type();
+    TupleOfType* type();
 
     static PyMethodDef* typeMethodsConcrete();
 
-    static bool compare_to_python_concrete(TupleOf* tupT, instance_ptr self, PyObject* other, bool exact, int pyComparisonOp) {
+    static bool compare_to_python_concrete(TupleOfType* tupT, instance_ptr self, PyObject* other, bool exact, int pyComparisonOp) {
         auto convert = [&](char cmpValue) { return cmpResultToBoolForPyOrdering(pyComparisonOp, cmpValue); };
 
         if (!PyTuple_Check(other)) {

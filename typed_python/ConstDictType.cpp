@@ -170,7 +170,7 @@ void ConstDict::addDicts(instance_ptr lhs, instance_ptr rhs, instance_ptr output
 }
 
 void ConstDict::subtractTupleOfKeysFromDict(instance_ptr lhs, instance_ptr rhs, instance_ptr output) const {
-    TupleOf* tupleType = tupleOfKeysType();
+    TupleOfType* tupleType = tupleOfKeysType();
 
     int64_t lhsCount = count(lhs);
     int64_t rhsCount = tupleType->count(rhs);

@@ -20,7 +20,6 @@ Int64 = native_ast.Int64
 Float64 = native_ast.Float64
 Void = native_ast.Void
 
-
 def externalCallTarget(name, output, *inputs):
     return native_ast.CallTarget.Named(
         target=native_ast.NamedCallTarget(
@@ -159,6 +158,30 @@ string_find_2 = externalCallTarget(
 string_find_3 = externalCallTarget(
     "nativepython_runtime_string_find_3",
     Int64,
+    Void.pointer(), Void.pointer(), Int64
+)
+
+string_split = externalCallTarget(
+    "nativepython_runtime_string_split",
+    Void,
+    Void.pointer(), Void.pointer(), Void.pointer(), Int64
+)
+
+string_split_2 = externalCallTarget(
+    "nativepython_runtime_string_split_2",
+    Void,
+    Void.pointer(), Void.pointer()
+)
+
+string_split_3 = externalCallTarget(
+    "nativepython_runtime_string_split_3",
+    Void,
+    Void.pointer(), Void.pointer(), Void.pointer()
+)
+
+string_split_3max = externalCallTarget(
+    "nativepython_runtime_string_split_3max",
+    Void,
     Void.pointer(), Void.pointer(), Int64
 )
 

@@ -37,9 +37,9 @@ class String;
 class Bytes;
 class OneOf;
 class Value;
-class TupleOf;
+class TupleOfType;
 class PointerTo;
-class ListOf;
+class ListOfType;
 class NamedTuple;
 class Tuple;
 class Dict;
@@ -192,11 +192,11 @@ public:
             case catOneOf:
                 return f(*(OneOf*)this);
             case catTupleOf:
-                return f(*(TupleOf*)this);
+                return f(*(TupleOfType*)this);
             case catPointerTo:
                 return f(*(PointerTo*)this);
             case catListOf:
-                return f(*(ListOf*)this);
+                return f(*(ListOfType*)this);
             case catNamedTuple:
                 return f(*(NamedTuple*)this);
             case catTuple:

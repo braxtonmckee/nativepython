@@ -12,7 +12,7 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-from typed_python import Function
+from typed_python import Function, ListOf
 from nativepython.runtime import Runtime
 import unittest
 
@@ -38,12 +38,23 @@ for s1 in list(someStrings):
 someStrings = sorted(set(someStrings))
 
 
+def callOrExcept(f, *args):
+    try:
+        return ("Normal", f(*args))
+    except Exception as e:
+        return ("Exception", str(e))
+
 def callOrExceptType(f, *args):
     try:
         return ("Normal", f(*args))
     except Exception as e:
         return ("Exception", str(type(e)))
 
+def callOrExceptNoType(f, *args):
+    try:
+        return ("Normal", f(*args))
+    except Exception as e:
+        return ("Exception", )
 
 class TestStringCompilation(unittest.TestCase):
     def test_string_passing_and_refcounting(self):
@@ -128,16 +139,11 @@ class TestStringCompilation(unittest.TestCase):
 
             self.assertEqual(s, s_from_code, (repr(s), repr(s_from_code)))
 
+
     def test_string_getitem(self):
         @Compiled
         def getitem(x: str, y: int):
             return x[y]
-
-        def callOrExcept(f, *args):
-            try:
-                return ("Normal", f(*args))
-            except Exception as e:
-                return ("Exception", str(e))
 
         for s in someStrings:
             for i in range(-20, 20):
@@ -329,6 +335,68 @@ class TestStringCompilation(unittest.TestCase):
         ]
         for s in titlestrings:
             self.assertEqual(c_istitle(s), s.istitle(), s)
+
+    def test_string_split(self):
+        @Compiled
+        def c_split(s: str, sep: str, max: int) -> ListOf(str):
+            r = ListOf(str)()
+            s.split(r, s, sep, max)
+            return r
+
+        @Compiled
+        def c_split_2(s: str) -> ListOf(str):
+            r = ListOf(str)()
+            s.split(r, s)
+            return r
+
+        @Compiled
+        def c_split_3(s: str, sep: str) -> ListOf(str):
+            r = ListOf(str)()
+            s.split(r, s, sep)
+            return r
+
+        @Compiled
+        def c_split_3max(s: str, max: int) -> ListOf(str):
+            r = ListOf(str)()
+            s.split(r, s, max)
+            return r
+
+        @Compiled
+        def c_split_initialized(s: str, lst: ListOf(str)) -> ListOf(str):
+            r = ListOf(str)(lst)
+            s.split(r, s)
+            return r
+
+        # unexpected standard behavior:
+        #   "   abc   ".split(maxsplit=0) = "abc   "  *** not "abc" nor "   abc   " ***
+        split_strings = [
+            "  abc  ",
+            "ahjdfashjkdfsj ksdjkhsfhjdkf",
+            "ahjdfashjkdfsj ksdjkhsfhjdkf" * 100,
+            "",
+            "a",
+            " one two  three   four    \n\nfive\r\rsix\n",
+            " one two  three   four    \n\nfive\r\rsix\n" * 100
+        ]
+        for s in split_strings:
+            result = callOrExceptNoType(c_split_2, s)
+            baseline = callOrExceptNoType(lambda: s.split())
+            self.assertEqual(result, baseline, "{} -> {}".format(s, result))
+            result = callOrExceptNoType(c_split_initialized, s, ["a", "b", "c"])
+            self.assertEqual(result, baseline, "{} -> {}".format(s, result))
+            for m in range(-2,10):
+                result = callOrExceptNoType(c_split_3max, s, m)
+                baseline = callOrExceptNoType(lambda: s.split(maxsplit=m))
+                self.assertEqual(result, baseline, "{},{}-> {}".format(s, m, result))
+
+            for sep in ["", "j", "s", "d" ,"t", " ", "as", "jks"]:
+                result = callOrExceptNoType(c_split_3, s, sep)
+                baseline = callOrExceptNoType(lambda: s.split(sep))
+                self.assertEqual(result, baseline, "{},{}-> {}".format(s, sep, result))
+                for m in range(-2,10):
+                    result = callOrExceptNoType(c_split, s, sep, m)
+                    baseline = callOrExceptNoType(lambda: s.split(sep, m))
+                    self.assertEqual(result, baseline, "{},{},{}-> {}".format(s, sep, m, result))
         """
         def rep_find(s, subs):
             result = 0

@@ -42,6 +42,22 @@ extern "C" {
         return String::find_3(l, sub, start);
     }
 
+    void nativepython_runtime_string_split(ListOfType::layout* outList, String::layout* l, String::layout* sep, int64_t max) {
+        String::split(outList, l, sep, max);
+    }
+
+    void nativepython_runtime_string_split_2(ListOfType::layout* outList, String::layout* l) {
+        String::split_2(outList, l);
+    }
+
+    void nativepython_runtime_string_split_3(ListOfType::layout* outList, String::layout* l, String::layout* sep) {
+        String::split_3(outList, l, sep);
+    }
+
+    void nativepython_runtime_string_split_3max(ListOfType::layout* outList, String::layout* l, int64_t max) {
+        String::split_3max(outList, l, max);
+    }
+
     bool nativepython_runtime_string_isalpha(String::layout* l) {
         return String::isalpha(l);
     }
@@ -196,6 +212,5 @@ extern "C" {
 
         throw std::runtime_error("Couldn't convert to an int64.");
     }
-
 
 }

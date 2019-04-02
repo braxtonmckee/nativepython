@@ -44,6 +44,10 @@ public:
     static int64_t find(layout* l, layout* sub, int64_t start, int64_t end);
     static int64_t find_2(layout* l, layout* sub);
     static int64_t find_3(layout* l, layout* sub, int64_t start);
+    static void split(ListOfType::layout *outList, layout* l, layout* sep, int64_t max);
+    static void split_2(ListOfType::layout *outList, layout* l);
+    static void split_3(ListOfType::layout *outList, layout* l, layout* sep);
+    static void split_3max(ListOfType::layout *outList, layout* l, int64_t max);
 
     static bool isalpha(layout *l);
     static bool isalnum(layout *l);
@@ -59,6 +63,7 @@ public:
     //return an increffed string containing the one codepoint at 'offset'. this function
     //will correctly map negative indices, but performs no other boundschecking.
     static layout* getitem(layout* lhs, int64_t offset);
+    static layout* getsubstr(layout* lhs, int64_t start, int64_t stop);
 
     //return an increffed string containing the data from the utf-encoded string
     static layout* createFromUtf8(const char* utfEncodedString, int64_t len);
