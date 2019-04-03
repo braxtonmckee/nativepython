@@ -1269,7 +1269,7 @@ class HeaderBar(Cell):
                     HTMLElement.div()
                     .add_class('flex-container')
                     .set_attribute('style',
-                                   'display:flex;justify-content:flex-center;align-items:baseline;')
+                                   'display:flex;justify-content:center;align-items:baseline;')
                     .add_children(self.leftElements)
                 ),
                 # Center Elements
@@ -1291,7 +1291,7 @@ class HeaderBar(Cell):
                     HTMLElement.div()
                     .add_class('flex-container')
                     .set_attribute('style',
-                                   'display:flex;justify-content:flex-center;align-items:baseline;')
+                                   'display:flex;justify-content:center;align-items:baseline;')
                     .add_children(self.rightElements)
                 )
             )
