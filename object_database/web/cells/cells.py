@@ -1760,7 +1760,6 @@ class Popover(Cell):
                 .set_attribute('data-toggle', 'popover')
                 .set_attribute('data-trigger', 'focus')
                 .set_attribute('data-bind', '#pop_%s' % self.identity)
-                .set_attribute('container', 'body')
                 .set_attribute('role', 'button')
                 .add_classes(['btn', 'btn-xs'])
                 .add_child(HTMLTextContent('____contents__')),
