@@ -13,9 +13,48 @@
 #   limitations under the License.
 
 from object_database.web.cells import (
-    Cells, Sequence, Container, Subscribed, Span, SubscribedSequence,
-    Card, Text, Slot, ensureSubscribedType, registerDisplay
+    Badge,
+    Button,
+    ButtonGroup,
+    Card,
+    CardTitle,
+    Cells,
+    Clickable,
+    Code,
+    CodeEditor,
+    CollapsiblePanel,
+    Columns,
+    Container,
+    ContextualDisplay,
+    Dropdown,
+    Expands,
+    ensureSubscribedType,
+    Grid,
+    HeaderBar,
+    LargePendingDownloadDisplay,
+    LoadContentsFromUrl,
+    Main,
+    Modal,
+    Octicon,
+    Padding,
+    Popover,
+    Plot,
+    RootCell,
+    registerDisplay,
+    Sequence,
+    Scrollable,
+    Sheet,
+    SingleLineTextBox,
+    Slot,
+    Span,
+    Subscribed,
+    SubscribedSequence,
+    # Table,
+    Tabs,
+    Text,
+    Traceback,
 )
+
 from object_database import InMemServer, Schema, Indexed, connect
 from object_database.util import genToken, configureLogging
 from object_database.test_util import (
@@ -23,6 +62,9 @@ from object_database.test_util import (
     autoconfigure_and_start_service_manager,
     log_cells_stats
 )
+
+from py_w3c.validators.html.validator import HTMLValidator
+
 
 import logging
 import unittest
@@ -35,6 +77,363 @@ test_schema = Schema("core.web.test")
 class Thing:
     k = Indexed(int)
     x = int
+
+
+class CellsHTMLTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        configureLogging(
+            preamble="cells_html_test",
+            level=logging.INFO
+        )
+        cls._logger = logging.getLogger(__name__)
+
+    def setUp(self):
+        self.token = genToken()
+        self.server = InMemServer(auth_token=self.token)
+        self.server.start()
+
+        self.db = self.server.connect(self.token)
+        self.db.subscribeToSchema(test_schema)
+        self.cells = Cells(self.db)
+        self.validator = HTMLValidator()
+
+    def tearDown(self):
+        self.server.stop()
+
+    def assertHTMLValid(self, html):
+        self.validator.validate_fragment(html)
+        if len(self.validator.errors) > 2:
+            error_str = 'INVALID HTML:\n\n %s\n' % html
+            error_str += str(self.validator.errors)
+            raise AssertionError(error_str)
+
+    def assertHTMLNotEmpty(self, html):
+        if html == "":
+            raise AssertionError("Cell does not produce any HTML!")
+
+    def test_card_html_valid(self):
+        cell = Card("Some text body")
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_card_title_html_valid(self):
+        cell = CardTitle("Some title body")
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_modal_html_valid(self):
+        cell = Modal("Title", "Modal Message")
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_octicon_html_valid(self):
+        cell = Octicon("which-example")
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_badge_html_valid(self):
+        cell = Badge("Some inner content here")
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    @unittest.skip("skipping: cell.recalculate() fails")
+    def test_collapsible_panel_html_valid(self):
+        cell = CollapsiblePanel("Inner panel content", "Other content", True)
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_text_html_valid(self):
+        cell = Text("This is some text")
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    @unittest.skip("skipping: cell.recalculate() DB fails")
+    def test_padding_html_valid(self):
+        cell = Padding()
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_span_html_valid(self):
+        cell = Span("Some spanned text")
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_sequence_html_valid(self):
+        elements = [
+            Text("Element One"),
+            Text("Element two")
+        ]
+        cell = Sequence(elements)
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_columns_html_valid(self):
+        elements = [
+            Text("Element One"),
+            Text("Element Two")
+        ]
+        cell = Columns(elements)
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_lg_pending_download_html_valid(self):
+        cell = LargePendingDownloadDisplay()
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_code_html_valid(self):
+        cell = Code("function(){console.log('hi');}")
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_contextual_display_html_valid(self):
+        cell = ContextualDisplay(object)
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_subscribed_html_valid(self):
+        child = Text("Subscribed Text")
+        cell = Subscribed(child)
+        # TODO: does this makes sense?
+        cell.cells = self.cells
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_header_bar_html_valid(self):
+        leftItems = [
+            Text("Left One"),
+            Text("Left Two")
+        ]
+        centerItems = [
+            Text("Center item")
+        ]
+        rightItems = [
+            Text("Right One"),
+            Text("Right Two"),
+            Text("Right Three")
+        ]
+        cell = HeaderBar(leftItems, centerItems, rightItems)
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_main_html_valid(self):
+        child = Text("This is a child cell")
+        cell = Main(child)
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_tabs_html_valid(self):
+        cell = Tabs(
+            Tab1=Card("Tab1 Content"),
+            Tab2=Card("Tab2 Content")
+        )
+        cell.recalculate()
+        html = cell.contents
+        # TODO: placeholder text can't be in element <ul>
+        html = html.replace("         ____header_0__  ____header_1__",
+                            "<li>_content</li>")
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    @unittest.skip("Skipping until we refactor init")
+    def test_table_html_valid(self):
+        pass
+
+    def test_dropdown_html_valid(self):  # CURRENTLY FAILING
+        vals = [1, 2, 3, 4]
+
+        def func(x):
+            return x + 1
+        cell = Dropdown("title", vals, func)
+        cell.cells = self.cells
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_container_html_valid(self):
+        child = Text("Child cell")
+        cell = Container(child)
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_scrollable_html_valid(self):
+        child = Text("Child cell")
+        cell = Scrollable(child)
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_root_cell_html_valid(self):
+        cell = RootCell()
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLValid(html)
+
+    def test_traceback_html_valid(self):
+        cell = Traceback("Some traceback information here")
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_subscribed_sequence_html_valid(self):
+        cell = SubscribedSequence(
+            lambda: Thing.lookupAll(k=0),
+            lambda thing: Span("X: %s, K: %s" % (thing.x, thing.k))
+        )
+        cell.cells = self.cells
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_plot_html_valid(self):
+        cell = Plot("Some plot data subscriptions here")
+        cell.cells = self.cells
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_popover_html_valid(self):
+        cell = Popover(
+            Text("This is the content"),
+            Text("This is the title"),
+            Text("This is the detail")
+        )
+        cell.cells = self.cells
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_sheet_html_valid(self):
+        cell = Sheet(["col1", "col2"], 10, lambda x: range(10))
+        cell.cells = self.cells
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_grid_html_valid(self):
+        columns = ['One', 'Two', 'Three']
+        rows = ['Thing1', 'Thing2', 'Thing3']
+        cell = Grid(
+            lambda: columns,
+            lambda: rows,
+            lambda x: x,
+            lambda rowLabel: rowLabel,
+            lambda x: x
+        )
+        cell.cells = self.cells
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_codeeditor_html_valid(self):
+        cell = CodeEditor()
+        cell.cells = self.cells
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_expands_html_valid(self):
+        cell = Expands(Text("closed"), Text("open"))
+        cell.cells = self.cells
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_loadcontentfromurl_html_valid(self):
+        cell = LoadContentsFromUrl("url")
+        cell._identity = "id"
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_button_html_valid(self):
+        cell = Button(content="", f=lambda x: x)
+        cell.cells = self.cells
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_buttongroup_html_valid(self):
+        b1 = Button(content="", f=lambda x: x)
+        b2 = Button(content="", f=lambda x: x)
+        cell = ButtonGroup([b1, b2])
+        cell.cells = self.cells
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_clickable_html_valid(self):
+        cell = Clickable(Text("content"), f=lambda x: x)
+        cell.cells = self.cells
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_singlelinetextbox_html_valid(self):
+        class MockSlot():
+            def __init__(self):
+                pass
+
+            def get(self):
+                return "inputValue"
+
+        cell = SingleLineTextBox(MockSlot())
+        cell.cells = self.cells
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
 
 
 class CellsTests(unittest.TestCase):
@@ -166,7 +565,8 @@ class CellsTests(unittest.TestCase):
             ensureSubscribedType(Thing2)
 
             res = Sequence([
-                Span("Thing(k=%s).x = %s" % (thing.k, thing.x)) for thing in Thing2.lookupAll()
+                Span("Thing(k=%s).x = %s"
+                     % (thing.k, thing.x)) for thing in Thing2.lookupAll()
             ])
 
             computed.set()
@@ -207,8 +607,10 @@ class CellsTests(unittest.TestCase):
 
             messages = self.cells.renderMessages()
 
-            self.assertTrue(len(self.cells) < 20, "Have %s cells at pass %s" % (len(self.cells), i))
-            self.assertTrue(len(messages) < 20, "Got %s messages at pass %s" % (len(messages), i))
+            self.assertTrue(len(self.cells) < 20, "Have %s cells at pass %s"
+                            % (len(self.cells), i))
+            self.assertTrue(len(messages) < 20, "Got %s messages at pass %s"
+                            % (len(messages), i))
 
     def helper_memory_leak(self, cell, initFn, workFn, thresholdMB):
         port = 8021

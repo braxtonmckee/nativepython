@@ -297,6 +297,41 @@ class HTMLElement(AbstractHTMLWriter):
             self.add_class(class_str)
         return self
 
+    def set_attribute(self, attribute_name, attribute_val):
+        """Convenience method for settings specific attributes.
+
+        This method should be used for setting arbitrary
+        HTML attributes and values. It is included for
+        convenience purposes and designed to be used
+        when chaining method calls.
+
+        Example
+        -------
+        Set both a `tabindex` and `role` attribute
+        on a `div` element using chaining::
+            element = (
+                HTMLElement.div()
+                           .set_attribute('role', 'primary')
+                           .set_attribute('tabindex', '2')
+                           .add_class('default-window')
+                )
+
+        Parameters
+        ----------
+        attribute_name: str
+            The name (key)of the HTML attribute to set
+        attribute_val: str
+            The value to set for the given attribute
+
+        Returns
+        -------
+        HTMLElement
+            A reference to the current instance that
+            can be used for chaining method calls.
+        """
+        self.attributes[attribute_name] = attribute_val
+        return self
+
     def pretty_print(self, indent_increment=2):
         """Prints the HTML structure of the element with custom indentation
 

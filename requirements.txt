@@ -19,3 +19,4 @@ pyyaml
 redis
 requests
 websockets
+py_w3c
