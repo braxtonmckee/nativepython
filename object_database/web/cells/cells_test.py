@@ -24,12 +24,14 @@ from object_database.web.cells import (
     ContextualDisplay,
     Dropdown,
     ensureSubscribedType,
+    Grid,
     HeaderBar,
     LargePendingDownloadDisplay,
     Main,
     Modal,
     Octicon,
     Padding,
+    Popover,
     RootCell,
     registerDisplay,
     Sequence,
@@ -94,7 +96,7 @@ class CellsHTMLTests(unittest.TestCase):
         if len(self.validator.errors) > 2:
             error_str = 'INVALID HTML:\n\n %s\n' % html
             error_str += str(self.validator.errors)
-            raise AssertionError()
+            raise AssertionError(error_str)
 
     def assertHTMLNotEmpty(self, html):
         if html == "":
@@ -297,6 +299,44 @@ class CellsHTMLTests(unittest.TestCase):
         self.assertHTMLNotEmpty(html)
         self.assertHTMLValid(html)
 
+    def test_subscribed_sequence_html_valid(self):
+        cell = SubscribedSequence(
+            lambda: Thing.lookupAll(k=0),
+            lambda thing: Span("X: %s, K: %s" % (thing.x, thing.k))
+        )
+        cell.cells = self.cells
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_popover_html_valid(self):
+        cell = Popover(
+            Text("This is the content"),
+            Text("This is the title"),
+            Text("This is the detail")
+        )
+        cell.cells = self.cells
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_grid_html_valid(self):
+        columns = ['One', 'Two', 'Three']
+        rows = ['Thing1', 'Thing2', 'Thing3']
+        cell = Grid(
+            lambda: columns,
+            lambda: rows,
+            lambda x: x,
+            lambda rowLabel: rowLabel,
+            lambda x: x
+        )
+        cell.cells = self.cells
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
 
 class CellsTests(unittest.TestCase):
     @classmethod
