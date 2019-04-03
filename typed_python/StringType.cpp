@@ -213,6 +213,7 @@ void StringType::split_3(ListOfType::layout* outList, layout* l, int64_t max) {
             cur++;
         layout* remainder = getsubstr(l, cur, l->pointcount);
         listofstring->append((instance_ptr)&outList, (instance_ptr)&remainder);
+        destroyStatic((instance_ptr)&remainder);
     }
     else {
         int64_t cur = 0;
@@ -231,6 +232,7 @@ void StringType::split_3(ListOfType::layout* outList, layout* l, int64_t max) {
             if (cur != match) {
                 layout* piece = getsubstr(l, cur, match);
                 listofstring->append((instance_ptr)&outList, (instance_ptr)&piece);
+                destroyStatic((instance_ptr)&piece);
                 count++;
             }
             cur = match + 1;
@@ -242,6 +244,7 @@ void StringType::split_3(ListOfType::layout* outList, layout* l, int64_t max) {
         if (cur < l->pointcount) {
             layout* remainder = getsubstr(l, cur, l->pointcount);
             listofstring->append((instance_ptr)&outList, (instance_ptr)&remainder);
+            destroyStatic((instance_ptr)&remainder);
         }
     }
 }
@@ -254,8 +257,9 @@ void StringType::split(ListOfType::layout* outList, layout* l, layout* sep, int6
 
     if (!sep || !sep->pointcount)
         throw std::invalid_argument("ValueError: empty separator");
-    else if (!l || !l->pointcount || max == 0)
+    else if (!l || !l->pointcount || max == 0) {
         listofstring->append((instance_ptr)&outList, (instance_ptr)&l);
+    }
     else {
         int64_t cur = 0;
         int64_t count = 0;
@@ -264,8 +268,8 @@ void StringType::split(ListOfType::layout* outList, layout* l, layout* sep, int6
             if (match < 0)
                 break;
             layout* piece = getsubstr(l, cur, match);
-
             listofstring->append((instance_ptr)&outList, (instance_ptr)&piece);
+            destroyStatic((instance_ptr)&piece);
             cur = match + sep->pointcount;
             count++;
             if (max >= 0 && count >= max)
@@ -273,6 +277,7 @@ void StringType::split(ListOfType::layout* outList, layout* l, layout* sep, int6
         }
         layout* remainder = getsubstr(l, cur, l->pointcount);
         listofstring->append((instance_ptr)&outList, (instance_ptr)&remainder);
+        destroyStatic((instance_ptr)&remainder);
     }
 }
 

@@ -403,10 +403,12 @@ class TestStringCompilation(unittest.TestCase):
                     self.assertEqual(result, baseline, "{},{},{}-> {}".format(s, sep, m, result))
 
         startusage = currentMemUsageMb()
-        for i in range(1000):
-            result = c_split_2(split_strings[2])
+        for i in range(100000):
+            for s in split_strings:
+                result = c_split_2(s)
+                result = c_split(s, " ", 9)
         endusage = currentMemUsageMb()
-        self.assertLess(endusage, startusage + 1, f"{startusage}->{endusage}")
+        self.assertLess(endusage, startusage + 1)
         """
         def rep_find(s, subs):
             result = 0
