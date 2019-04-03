@@ -218,7 +218,7 @@ PyObject *MakeUInt64Type(PyObject* nullValue, PyObject* args) {
     return incref((PyObject*)PyInstance::typeObj(::UInt64::Make()));
 }
 PyObject *MakeStringType(PyObject* nullValue, PyObject* args) {
-    return incref((PyObject*)PyInstance::typeObj(::String::Make()));
+    return incref((PyObject*)PyInstance::typeObj(::StringType::Make()));
 }
 PyObject *MakeBytesType(PyObject* nullValue, PyObject* args) {
     return incref((PyObject*)PyInstance::typeObj(::Bytes::Make()));
@@ -1112,7 +1112,7 @@ void updateTypeRepForType(Type* type, PyTypeObject* pyType) {
 PyMODINIT_FUNC
 PyInit__types(void)
 {
-    // initialize unicode property table, for String class
+    // initialize unicode property table, for StringType
     initialize_uprops();
 
     //initialize numpy. This is only OK because all the .cpp files get

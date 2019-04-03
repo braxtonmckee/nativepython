@@ -33,7 +33,7 @@ class Int32;
 class Int64;
 class Float32;
 class Float64;
-class String;
+class StringType;
 class Bytes;
 class OneOf;
 class Value;
@@ -180,7 +180,7 @@ public:
             case catInt64:
                 return f(*(Int64*)this);
             case catString:
-                return f(*(String*)this);
+                return f(*(StringType*)this);
             case catBytes:
                 return f(*(Bytes*)this);
             case catFloat32:

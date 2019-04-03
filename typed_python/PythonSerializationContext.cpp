@@ -625,7 +625,7 @@ Type* PythonSerializationContext::deserializeNativeTypeUncached(DeserializationB
         return ::Bytes::Make();
     }
     if (category == Type::TypeCategory::catString) {
-        return ::String::Make();
+        return ::StringType::Make();
     }
     if (category == Type::TypeCategory::catBool) {
         return ::Bool::Make();

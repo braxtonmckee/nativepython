@@ -240,3 +240,91 @@ template<> class GetRegisterType<uint32_t> { public: Type* operator()() const { 
 template<> class GetRegisterType<uint64_t> { public: Type* operator()() const { return UInt64::Make(); } };
 template<> class GetRegisterType<float> { public: Type* operator()() const { return Float32::Make(); } };
 template<> class GetRegisterType<double> { public: Type* operator()() const { return Float64::Make(); } };
+
+template<>
+class TypeDetails<int64_t> {
+public:
+    static Type* getType() { return Int64::Make(); }
+
+    static const uint64_t bytecount = sizeof(int64_t);
+};
+
+template<>
+class TypeDetails<uint64_t> {
+public:
+    static Type* getType() { return UInt64::Make(); }
+
+    static const uint64_t bytecount = sizeof(uint64_t);
+};
+
+template<>
+class TypeDetails<int32> {
+public:
+    static Type* getType() { return Int32::Make(); }
+
+    static const uint64_t bytecount = sizeof(int32_t);
+};
+
+template<>
+class TypeDetails<uint32_t> {
+public:
+    static Type* getType() { return UInt32::Make(); }
+
+    static const uint64_t bytecount = sizeof(uint32_t);
+};
+
+template<>
+class TypeDetails<int16> {
+public:
+    static Type* getType() { return Int16::Make(); }
+
+    static const uint64_t bytecount = sizeof(int16_t);
+};
+
+template<>
+class TypeDetails<uint16_t> {
+public:
+    static Type* getType() { return UInt16::Make(); }
+
+    static const uint64_t bytecount = sizeof(uint16_t);
+};
+
+template<>
+class TypeDetails<int8> {
+public:
+    static Type* getType() { return Int8::Make(); }
+
+    static const uint64_t bytecount = sizeof(int8_t);
+};
+
+template<>
+class TypeDetails<uint8_t> {
+public:
+    static Type* getType() { return UInt8::Make(); }
+
+    static const uint64_t bytecount = sizeof(uint8_t);
+};
+
+template<>
+class TypeDetails<bool> {
+public:
+    static Type* getType() { return Bool::Make(); }
+
+    static const uint64_t bytecount = sizeof(bool);
+};
+
+template<>
+class TypeDetails<float> {
+public:
+    static Type* getType() { return Float32::Make(); }
+
+    static const uint64_t bytecount = sizeof(float);
+};
+
+template<>
+class TypeDetails<double> {
+public:
+    static Type* getType() { return Float64::Make(); }
+
+    static const uint64_t bytecount = sizeof(double);
+};

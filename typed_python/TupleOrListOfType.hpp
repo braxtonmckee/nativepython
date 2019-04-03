@@ -40,7 +40,7 @@ public:
     }
 
     void _forwardTypesMayHaveChanged() {
-        m_name = (m_is_tuple ? "TupleOfType(" : "ListOfType(") + m_element_type->name() + ")";
+        m_name = (m_is_tuple ? "TupleOf(" : "ListOf(") + m_element_type->name() + ")";
     }
 
     template<class buf_t>

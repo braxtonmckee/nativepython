@@ -2,7 +2,7 @@
 
 #include "Type.hpp"
 
-class String : public Type {
+class StringType : public Type {
 public:
     class layout {
     public:
@@ -17,7 +17,7 @@ public:
         }
     };
 
-    String() : Type(TypeCategory::catString)
+    StringType() : Type(TypeCategory::catString)
     {
         m_name = "String";
         m_is_default_constructible = true;
@@ -85,7 +85,7 @@ public:
     void _visitContainedTypes(const visitor_type& v) {}
 
 
-    static String* Make() { static String res; return &res; }
+    static StringType* Make() { static StringType res; return &res; }
 
     template<class buf_t>
     void serialize(instance_ptr self, buf_t& buffer) {
@@ -144,3 +144,16 @@ public:
     void assign(instance_ptr self, instance_ptr other);
 };
 
+template<>
+class TypeDetails<str> {
+public:
+    static Type* getType() {
+        static Type* t = StringType::Make();
+        if (t->bytecount() != bytecount) {
+            throw std::runtime_error("somehow we have the wrong bytecount!");
+        }
+        return t;
+    }
+
+    static const uint64_t bytecount = sizeof(void*);
+};

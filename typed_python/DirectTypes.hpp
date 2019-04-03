@@ -2,58 +2,11 @@
 
 #include "Type.hpp"
 
-/* usage:
-    str s("abc");
-    str t;
-    // perform String operations on mLayout
-    if (String::islower(s.mLayout))
-        ...
-    // can convert String::layout* to str
-    str a = str(StringConcat(s.mLayout, t.mLayout));
-
-*/
-/*
-template <class T>
-class DirectWrapper {
-    public:
-        T::layout* mLayout
-        static T* getType() {
-            static * t = T::Make();
-            return t;
-        }
-        DirectWrapper(T& s) {
-            mLayout = nullptr;
-        }
-        DirectWrapper(T::layout* l) {
-            mLayout = nullptr;
-        }
-        ~DirectWrapper() {
-            getType()->destroy((instance_ptr)&mLayout);
-        }
-        DirectWrapper(const DirectWrapper& other)
-        {
-	        getType()->copy_constructor(
-               (instance_ptr)&mLayout,
-               (instance_ptr)&other.mLayout
-               );
-        }
-
-        DirectWrapper& operator=(const DirectWrapper& other)
-        {
-	        getType()->assign(
-               (instance_ptr)&mLayout,
-               (instance_ptr)&other.mLayout
-               );
-            return *this;
-        }
-};
-typedef DirectWrapper<String> str;
-*/
 class str {
     public:
-        String::layout* mLayout;
-        static String* getType() {
-            static String* t = String::Make();
+        StringType::layout* mLayout;
+        static StringType* getType() {
+            static StringType* t = StringType::Make();
             return t;
         }
 
@@ -69,7 +22,7 @@ class str {
             getType()->constructor((instance_ptr)&mLayout, 1, s.length(), s.data());
         }
 
-        str(String::layout* l) {
+        str(StringType::layout* l) {
 	        getType()->assign(
                (instance_ptr)&mLayout,
                (instance_ptr)&l
@@ -77,7 +30,7 @@ class str {
         }
 
         ~str() {
-            String::destroyStatic((instance_ptr)&mLayout);
+            StringType::destroyStatic((instance_ptr)&mLayout);
         }
 
         str(const str& other)
@@ -107,68 +60,6 @@ class str {
             getType()->serialize<buf_t>((instance_ptr)&mLayout, buffer);
         }
 };
-
-template<class element_type>
-class TypeDetails {
-public:
-    static Type* getType() { throw std::runtime_error("specialize me");}
-    
-    static const uint64_t bytecount = 0;
-};
-
-template<>
-class TypeDetails<int64_t> {
-public:
-    static Type* getType() { return Int64::Make(); }
-
-    static const uint64_t bytecount = sizeof(int64_t);
-};
-
-template<>
-class TypeDetails<uint64_t> {
-public:
-    static Type* getType() { return UInt64::Make(); }
-
-    static const uint64_t bytecount = sizeof(uint64_t);
-};
-
-template<>
-class TypeDetails<bool> {
-public:
-    static Type* getType() { return Bool::Make(); }
-
-    static const uint64_t bytecount = sizeof(bool);
-};
-template<>
-class TypeDetails<double> {
-public:
-    static Type* getType() { return Float64::Make(); }
-
-    static const uint64_t bytecount = sizeof(double);
-};
-
-template<>
-class TypeDetails<float> {
-public:
-    static Type* getType() { return Float32::Make(); }
-
-    static const uint64_t bytecount = sizeof(float);
-};
-
-template<>
-class TypeDetails<str> {
-public:
-    static Type* getType() {
-        static Type* t = String::Make();
-        if (t->bytecount() != bytecount) {
-            throw std::runtime_error("somehow we have the wrong bytecount!");
-        }
-        return t;
-    }
-
-    static const uint64_t bytecount = sizeof(void*);
-};
-
 
 //templates for TupleOf, ListOf, Dict, ConstDict, OneOf
 template<class element_type>
@@ -427,13 +318,5 @@ Produce new ones
 Iterate over the dictionary and tuple of internals
 etc.
 }
-
-
-void split(ListOf<String>* out, const String* s, const String* sep) {
-
-}
- 
-   
-   
 
 */

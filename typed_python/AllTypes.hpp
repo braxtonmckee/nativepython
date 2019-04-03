@@ -4,6 +4,7 @@
 //our subclasses by TypeCategory requires that if you include
 //want to use any Type, you need to know about all of them.
 #include "Type.hpp"
+#include "TypeDetails.hpp"
 #include "RegisterTypes.hpp"
 #include "ForwardType.hpp"
 #include "OneOfType.hpp"

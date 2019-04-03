@@ -19,8 +19,8 @@ Type* Value::MakeBytes(char* data, size_t count) {
 }
 
 Type* Value::MakeString(size_t bytesPerCodepoint, size_t count, char* data) {
-    return Make(Instance::createAndInitialize(String::Make(), [&](instance_ptr i) {
-        String::Make()->constructor(i, bytesPerCodepoint, count, data);
+    return Make(Instance::createAndInitialize(StringType::Make(), [&](instance_ptr i) {
+        StringType::Make()->constructor(i, bytesPerCodepoint, count, data);
     }));
 }
 

@@ -14,96 +14,96 @@ const char* nativepython_runtime_get_stashed_exception() {
 
 extern "C" {
 
-    int64_t nativepython_runtime_string_cmp(String::layout* lhs, String::layout* rhs) {
-        return String::cmpStatic(lhs, rhs);
+    int64_t nativepython_runtime_string_cmp(StringType::layout* lhs, StringType::layout* rhs) {
+        return StringType::cmpStatic(lhs, rhs);
     }
 
-    String::layout* nativepython_runtime_string_concat(String::layout* lhs, String::layout* rhs) {
-        return String::concatenate(lhs, rhs);
+    StringType::layout* nativepython_runtime_string_concat(StringType::layout* lhs, StringType::layout* rhs) {
+        return StringType::concatenate(lhs, rhs);
     }
 
-    String::layout* nativepython_runtime_string_lower(String::layout* l) {
-        return String::lower(l);
+    StringType::layout* nativepython_runtime_string_lower(StringType::layout* l) {
+        return StringType::lower(l);
     }
 
-    String::layout* nativepython_runtime_string_upper(String::layout* l) {
-        return String::upper(l);
+    StringType::layout* nativepython_runtime_string_upper(StringType::layout* l) {
+        return StringType::upper(l);
     }
 
-    int64_t nativepython_runtime_string_find(String::layout* l, String::layout* sub, int64_t start, int64_t end) {
-        return String::find(l, sub, start, end);
+    int64_t nativepython_runtime_string_find(StringType::layout* l, StringType::layout* sub, int64_t start, int64_t end) {
+        return StringType::find(l, sub, start, end);
     }
 
-    int64_t nativepython_runtime_string_find_2(String::layout* l, String::layout* sub) {
-        return String::find_2(l, sub);
+    int64_t nativepython_runtime_string_find_2(StringType::layout* l, StringType::layout* sub) {
+        return StringType::find_2(l, sub);
     }
 
-    int64_t nativepython_runtime_string_find_3(String::layout* l, String::layout* sub, int64_t start) {
-        return String::find_3(l, sub, start);
+    int64_t nativepython_runtime_string_find_3(StringType::layout* l, StringType::layout* sub, int64_t start) {
+        return StringType::find_3(l, sub, start);
     }
 
-    void nativepython_runtime_string_split(ListOfType::layout* outList, String::layout* l, String::layout* sep, int64_t max) {
-        String::split(outList, l, sep, max);
+    void nativepython_runtime_string_split(ListOfType::layout* outList, StringType::layout* l, StringType::layout* sep, int64_t max) {
+        StringType::split(outList, l, sep, max);
     }
 
-    void nativepython_runtime_string_split_2(ListOfType::layout* outList, String::layout* l) {
-        String::split_2(outList, l);
+    void nativepython_runtime_string_split_2(ListOfType::layout* outList, StringType::layout* l) {
+        StringType::split_2(outList, l);
     }
 
-    void nativepython_runtime_string_split_3(ListOfType::layout* outList, String::layout* l, String::layout* sep) {
-        String::split_3(outList, l, sep);
+    void nativepython_runtime_string_split_3(ListOfType::layout* outList, StringType::layout* l, StringType::layout* sep) {
+        StringType::split_3(outList, l, sep);
     }
 
-    void nativepython_runtime_string_split_3max(ListOfType::layout* outList, String::layout* l, int64_t max) {
-        String::split_3max(outList, l, max);
+    void nativepython_runtime_string_split_3max(ListOfType::layout* outList, StringType::layout* l, int64_t max) {
+        StringType::split_3max(outList, l, max);
     }
 
-    bool nativepython_runtime_string_isalpha(String::layout* l) {
-        return String::isalpha(l);
+    bool nativepython_runtime_string_isalpha(StringType::layout* l) {
+        return StringType::isalpha(l);
     }
 
-    bool nativepython_runtime_string_isalnum(String::layout* l) {
-        return String::isalnum(l);
+    bool nativepython_runtime_string_isalnum(StringType::layout* l) {
+        return StringType::isalnum(l);
     }
 
-    bool nativepython_runtime_string_isdecimal(String::layout* l) {
-        return String::isdecimal(l);
+    bool nativepython_runtime_string_isdecimal(StringType::layout* l) {
+        return StringType::isdecimal(l);
     }
 
-    bool nativepython_runtime_string_isdigit(String::layout* l) {
-        return String::isdigit(l);
+    bool nativepython_runtime_string_isdigit(StringType::layout* l) {
+        return StringType::isdigit(l);
     }
 
-    bool nativepython_runtime_string_islower(String::layout* l) {
-        return String::islower(l);
+    bool nativepython_runtime_string_islower(StringType::layout* l) {
+        return StringType::islower(l);
     }
 
-    bool nativepython_runtime_string_isnumeric(String::layout* l) {
-        return String::isnumeric(l);
+    bool nativepython_runtime_string_isnumeric(StringType::layout* l) {
+        return StringType::isnumeric(l);
     }
 
-    bool nativepython_runtime_string_isprintable(String::layout* l) {
-        return String::isprintable(l);
+    bool nativepython_runtime_string_isprintable(StringType::layout* l) {
+        return StringType::isprintable(l);
     }
 
-    bool nativepython_runtime_string_isspace(String::layout* l) {
-        return String::isspace(l);
+    bool nativepython_runtime_string_isspace(StringType::layout* l) {
+        return StringType::isspace(l);
     }
 
-    bool nativepython_runtime_string_istitle(String::layout* l) {
-        return String::istitle(l);
+    bool nativepython_runtime_string_istitle(StringType::layout* l) {
+        return StringType::istitle(l);
     }
 
-    bool nativepython_runtime_string_isupper(String::layout* l) {
-        return String::isupper(l);
+    bool nativepython_runtime_string_isupper(StringType::layout* l) {
+        return StringType::isupper(l);
     }
 
-    String::layout* nativepython_runtime_string_getitem_int64(String::layout* lhs, int64_t index) {
-        return String::getitem(lhs, index);
+    StringType::layout* nativepython_runtime_string_getitem_int64(StringType::layout* lhs, int64_t index) {
+        return StringType::getitem(lhs, index);
     }
 
-    String::layout* nativepython_runtime_string_from_utf8_and_len(const char* utf8_str, int64_t len) {
-        return String::createFromUtf8(utf8_str, len);
+    StringType::layout* nativepython_runtime_string_from_utf8_and_len(const char* utf8_str, int64_t len) {
+        return StringType::createFromUtf8(utf8_str, len);
     }
 
     Bytes::layout* nativepython_runtime_bytes_concat(Bytes::layout* lhs, Bytes::layout* rhs) {
