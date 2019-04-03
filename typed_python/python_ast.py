@@ -172,6 +172,95 @@ Statement = Alternative(
 )
 
 
+def expr_str(self):
+    if self.matches.BoolOp:
+        return str(self.op) + "(" + ", ".join(str(e) for e in self.values) + ")"
+
+    elif self.matches.BinOp:
+        return f"({self.left} {self.op} {self.right})"
+
+    elif self.matches.UnaryOp:
+        return f"{self.op}({self.operand})"
+
+    elif self.matches.Lambda:
+        return f"lambda {self.args}: {self.body}"
+
+    elif self.matches.IfExp:
+        return (
+            f"if {self.test}:\n" +
+            f"    {self.body}\n" +
+            f"else:\n" +
+            f"    {self.orelse}"
+        )
+
+    elif self.matches.Dict:
+        key_vals = [
+            f"'{self.keys[ix]}': {self.values[ix]}"
+            for ix in range(len(self.keys))
+        ]
+        if len(self.keys) <= 2:
+            # single-line
+            return (
+                "{"
+                + ", ".join(key_vals)
+                + "}"
+            )
+        else:
+            # multi-line
+            key_vals = [f'    {kv}' for kv in key_vals]
+            return (
+                "{\n"
+                + ",\n".join(key_vals)
+                + "\n}"
+            )
+
+    elif self.matches.Set:
+        return "{" + ", ".join(str(self.elts[ix]) for ix in range(len(self.elts))) + "}"
+
+    # TODO: ListComp, SetComp, DictComp, GeneratorExp, Yield
+
+    elif self.matches.Compare:
+        return " and ".join(
+            f"{self.left} {self.ops[ix]} {self.comparators[ix]}"
+            for ix in range(len(self.ops))
+        )
+
+    elif self.matches.Call:
+        return (
+            f"{self.func}("
+            + ", ".join(str(e) for e in self.args)
+            + ", ".join(str(kw) for kw in self.keywords)
+            + ")"
+        )
+
+    elif self.matches.Num:
+        return str(self.n)
+
+    elif self.matches.Str:
+        return self.s
+
+    elif self.matches.Attribute:
+        return f"{self.value}.{self.attr}"
+
+    elif self.matches.Subscript:
+        return f"{self.value}[{self.slice}]"
+
+    elif self.matches.Name:
+        return self.id
+
+    elif self.matches.List:
+        return "[" + ", ".join(str(self.elts[ix]) for ix in range(len(self.elts))) + "]"
+
+    elif self.matches.Tuplr:
+        return "(" + ", ".join(str(self.elts[ix]) for ix in range(len(self.elts))) + ")"
+
+    elif self.matches.Starred:
+        return f"*{self.value}"
+    else:
+        print(f"DEBUG: not implemented expr_str for {self.Name} Expression!")
+        return repr(self)
+
+
 Expr = Alternative(
     "Expr",
     BoolOp={
@@ -287,7 +376,25 @@ Expr = Alternative(
         "ctx": ExprContext,
         **CodeLoc
     },
+    # methods
+    __str__=expr_str
 )
+
+
+def numeric_constant_str(self):
+    res = (
+        str(self.value) if self.matches.Int else
+        str(self.value) if self.matches.Long else
+        str(self.value) if self.matches.Boolean else
+        str(self.value) if self.matches.Float else
+        "None" if self.matches.None_ else
+        "<UNKNOWN NUMERIC CONSTANT" if self.matches.Unknwon else
+        None
+    )
+    if res is None:
+        raise Exception("Unknown type of numeric constant")
+    return res
+
 
 NumericConstant = Alternative(
     "NumericConstant",
@@ -296,7 +403,8 @@ NumericConstant = Alternative(
     Boolean={"value": bool},
     None_={},
     Float={"value": float},
-    Unknown={}
+    Unknown={},
+    __str__=numeric_constant_str
 )
 
 ExprContext = Alternative(
@@ -309,6 +417,28 @@ ExprContext = Alternative(
     Param={}
 )
 
+
+def slice_str(self):
+    if self.matches.Ellipsis:
+        return "..."
+
+    elif self.matches.Slice:
+        return (
+            str(self.lower) if self.lower is not None else ""
+            + ":" + str(self.upper) if self.upper is not None else ""
+            + f":{self.step}" if self.step is not None else ""
+        )
+
+    elif self.matches.ExtSlice:
+        return ", ".join(str(slc) for slc in self.dims)
+
+    elif self.matches.Index:
+        return str(self.value)
+
+    else:
+        raise Exception("Unexpected kind of Slice")
+
+
 Slice = Alternative(
     "Slice",
     Ellipsis={},
@@ -318,14 +448,53 @@ Slice = Alternative(
         "step": OneOf(Expr, None)
     },
     ExtSlice={"dims": TupleOf(Slice)},
-    Index={"value": Expr}
+    Index={"value": Expr},
+    __str__=slice_str
 )
+
+
+def boolop_str(self):
+    res = (
+        "And" if self.matches.And else
+        "Or" if self.matches.Or else
+        None
+    )
+    if res is None:
+        raise Exception("Unknown binary operator")
+    return res
+
 
 BooleanOp = Alternative(
     "BooleanOp",
     And={},
-    Or={}
+    Or={},
+    __str__=boolop_str
 )
+
+
+def binop_str(self):
+    res = (
+        "+" if self.matches.Add else
+        "-" if self.matches.Sub else
+        "*" if self.matches.Mul else
+        "/" if self.matches.Div else
+        "==" if self.matches.Eq else
+        "!=" if self.matches.NotEq else
+        "<" if self.matches.Lt else
+        "<=" if self.matches.LtE else
+        ">" if self.matches.Gt else
+        ">=" if self.matches.GtE else
+        "<<" if self.matches.LShift else
+        ">>" if self.matches.RShift else
+        "|" if self.matches.BitOr else
+        "&" if self.matches.BitAnd else
+        "^" if self.matches.BitXor else
+        None
+    )
+    if res is None:
+        raise Exception("Unknown binary operator")
+    return res
+
 
 BinaryOp = Alternative(
     "BinaryOp",
@@ -340,16 +509,52 @@ BinaryOp = Alternative(
     BitOr={},
     BitXor={},
     BitAnd={},
-    FloorDiv={}
+    FloorDiv={},
+    __str__=binop_str
 )
+
+
+def unop_str(self):
+    res = (
+        "~" if self.matches.Invert else
+        "!" if self.matches.Not else
+        "+" if self.matches.UAdd else
+        "-" if self.matches.USub else
+        None
+    )
+    if res is None:
+        raise Exception("Unknown unary operator")
+    return res
+
 
 UnaryOp = Alternative(
     "UnaryOp",
     Invert={},
     Not={},
     UAdd={},
-    USub={}
+    USub={},
+    __str__=unop_str
 )
+
+
+def compop_str(self):
+    res = (
+        "=" if self.matches.Eq else
+        "!=" if self.matches.NotEq else
+        "<" if self.matches.Lt else
+        "<=" if self.matches.LtE else
+        ">" if self.matches.Gt else
+        ">=" if self.matches.GtE else
+        "is" if self.matches.Is else
+        "is not" if self.matches.IsNot else
+        "in" if self.matches.In else
+        "not in" if self.matches.NotIn else
+        None
+    )
+    if res is None:
+        raise Exception("Unknown comparison operator")
+    return res
+
 
 ComparisonOp = Alternative(
     "ComparisonOp",
@@ -362,7 +567,8 @@ ComparisonOp = Alternative(
     Is={},
     IsNot={},
     In={},
-    NotIn={}
+    NotIn={},
+    __str__=compop_str
 )
 
 Comprehension = Alternative(
