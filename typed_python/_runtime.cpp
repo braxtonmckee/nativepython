@@ -35,11 +35,11 @@ extern "C" {
     }
 
     int64_t nativepython_runtime_string_find_2(StringType::layout* l, StringType::layout* sub) {
-        return StringType::find_2(l, sub);
+        return StringType::find(l, sub, 0, l ? l->pointcount : 0);
     }
 
     int64_t nativepython_runtime_string_find_3(StringType::layout* l, StringType::layout* sub, int64_t start) {
-        return StringType::find_3(l, sub, start);
+        return StringType::find(l, sub, start, l ? l->pointcount : 0);
     }
 
     void nativepython_runtime_string_split(ListOfType::layout* outList, StringType::layout* l, StringType::layout* sep, int64_t max) {
@@ -47,15 +47,15 @@ extern "C" {
     }
 
     void nativepython_runtime_string_split_2(ListOfType::layout* outList, StringType::layout* l) {
-        StringType::split_2(outList, l);
+        StringType::split_3(outList, l, -1);
     }
 
     void nativepython_runtime_string_split_3(ListOfType::layout* outList, StringType::layout* l, StringType::layout* sep) {
-        StringType::split_3(outList, l, sep);
+        StringType::split(outList, l, sep, -1);
     }
 
     void nativepython_runtime_string_split_3max(ListOfType::layout* outList, StringType::layout* l, int64_t max) {
-        StringType::split_3max(outList, l, max);
+        StringType::split_3(outList, l, max);
     }
 
     bool nativepython_runtime_string_isalpha(StringType::layout* l) {

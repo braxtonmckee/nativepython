@@ -145,6 +145,20 @@ private:
 };
 
 template<class element_type>
+class TypeDetails<ListOf<element_type>> {
+public:
+    static Type* getType() {
+        static Type* t = ListOfType::Make(TypeDetails<element_type>::getType());
+        if (t->bytecount() != bytecount) {
+            throw std::runtime_error("somehow we have the wrong bytecount!");
+        }
+        return t;
+    }
+
+    static const uint64_t bytecount = sizeof(void*);
+};
+
+template<class element_type>
 class TupleOf {
 public:
     static TupleOfType* getType() {
@@ -206,6 +220,20 @@ public:
 
 private:
     TupleOfType::layout* mLayout;
+};
+
+template<class element_type>
+class TypeDetails<TupleOf<element_type>> {
+public:
+    static Type* getType() {
+        static Type* t = ListOfType::Make(TypeDetails<element_type>::getType());
+        if (t->bytecount() != bytecount) {
+            throw std::runtime_error("somehow we have the wrong bytecount!");
+        }
+        return t;
+    }
+
+    static const uint64_t bytecount = sizeof(void*);
 };
 
 // some generated NamedTuples, from

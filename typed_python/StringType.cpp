@@ -147,14 +147,6 @@ StringType::layout* StringType::upper(layout *l) {
     return new_layout;
 }
 
-int64_t StringType::find_2(layout *l, layout *sub) {
-    return find(l, sub, 0, l ? l->pointcount : 0);
-}
-
-int64_t StringType::find_3(layout *l, layout *sub, int64_t start) {
-    return find(l, sub, start, l ? l->pointcount : 0);
-}
-
 uint32_t getpoint(StringType::layout *l, uint64_t i) {
     if (l->bytes_per_codepoint == 1)
         return ((uint8_t *)l->data)[i];
@@ -205,11 +197,7 @@ int64_t StringType::find(layout *l, layout *sub, int64_t start, int64_t stop) {
     return -1;
 }
 
-void StringType::split_2(ListOfType::layout* outList, layout* l) {
-    split_3max(outList, l, -1);
-}
-
-void StringType::split_3max(ListOfType::layout* outList, layout* l, int64_t max) {
+void StringType::split_3(ListOfType::layout* outList, layout* l, int64_t max) {
     if (!outList)
         throw std::invalid_argument("missing return argument");
     static auto listofstring = ListOfType::Make(StringType::Make());
@@ -258,10 +246,6 @@ void StringType::split_3max(ListOfType::layout* outList, layout* l, int64_t max)
     }
 }
 
-void StringType::split_3(ListOfType::layout* outList, layout* l, layout* sep) {
-    split(outList, l, sep, -1);
-}
-
 void StringType::split(ListOfType::layout* outList, layout* l, layout* sep, int64_t max) {
     if (!outList)
         throw std::invalid_argument("missing return argument");
@@ -276,7 +260,7 @@ void StringType::split(ListOfType::layout* outList, layout* l, layout* sep, int6
         int64_t cur = 0;
         int64_t count = 0;
         while (cur < l->pointcount) {
-            int64_t match = find_3(l, sep, cur);
+            int64_t match = find(l, sep, cur, l->pointcount);
             if (match < 0)
                 break;
             layout* piece = getsubstr(l, cur, match);

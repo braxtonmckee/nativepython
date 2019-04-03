@@ -24,6 +24,7 @@ O_FILES = $(BUILD_PATH)/_types.o \
           $(BUILD_PATH)/PythonSerializationContext.o
 
 UNICODEPROPS = $(SRC_PATH)/UnicodeProps.hpp
+GENERATEDTYPES = $(SRC_PATH)/GeneratedTypes.hpp
 
 ##########################################################################
 #  MAIN RULES
@@ -76,6 +77,10 @@ docker-web:
 .PHONY: unicodeprops
 unicodeprops: ./unicodeprops.py
 	$(PYTHON) ./unicodeprops.py > $(UNICODEPROPS)
+
+.PHONY: generatetypes
+generatetypes: ./generate.py
+	$(PYTHON) ./generate.py $(GENERATEDTYPES)
 
 .PHONY: clean
 clean:

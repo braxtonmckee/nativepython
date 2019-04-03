@@ -13,7 +13,9 @@
 #   limitations under the License.
 
 from typed_python import Function, ListOf
+from typed_python.test_util import currentMemUsageMb
 from nativepython.runtime import Runtime
+
 import unittest
 
 
@@ -377,8 +379,8 @@ class TestStringCompilation(unittest.TestCase):
             "ahjdfashjkdfsj ksdjkhsfhjdkf" * 100,
             "",
             "a",
-            " one two  three   four    \n\nfive\r\rsix\n",
-            " one two  three   four    \n\nfive\r\rsix\n" * 100
+            " one two  three   \tfour    \n\nfive\r\rsix\n",
+            " one two  three   \tfour    \n\nfive\r\rsix\n" * 100
         ]
         for s in split_strings:
             result = callOrExceptNoType(c_split_2, s)
@@ -399,6 +401,12 @@ class TestStringCompilation(unittest.TestCase):
                     result = callOrExceptNoType(c_split, s, sep, m)
                     baseline = callOrExceptNoType(lambda: s.split(sep, m))
                     self.assertEqual(result, baseline, "{},{},{}-> {}".format(s, sep, m, result))
+
+        startusage = currentMemUsageMb()
+        for i in range(1000):
+            result = c_split_2(split_strings[2])
+        endusage = currentMemUsageMb()
+        self.assertLess(endusage, startusage + 1, f"{startusage}->{endusage}")
         """
         def rep_find(s, subs):
             result = 0

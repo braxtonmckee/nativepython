@@ -42,12 +42,8 @@ public:
 
     //return the lowest index in the string where substring sub is found within l[start, end]
     static int64_t find(layout* l, layout* sub, int64_t start, int64_t end);
-    static int64_t find_2(layout* l, layout* sub);
-    static int64_t find_3(layout* l, layout* sub, int64_t start);
     static void split(ListOfType::layout *outList, layout* l, layout* sep, int64_t max);
-    static void split_2(ListOfType::layout *outList, layout* l);
-    static void split_3(ListOfType::layout *outList, layout* l, layout* sep);
-    static void split_3max(ListOfType::layout *outList, layout* l, int64_t max);
+    static void split_3(ListOfType::layout *outList, layout* l, int64_t max);
 
     static bool isalpha(layout *l);
     static bool isalnum(layout *l);
