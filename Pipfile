@@ -8,6 +8,7 @@ nose = "*"
 flake8 = "*"
 autopep8 = "*"
 beautifulsoup4 = "*"
+py_w3c = "*"
 
 [packages]
 redis = "*"
