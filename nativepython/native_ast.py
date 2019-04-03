@@ -224,13 +224,17 @@ def expr_concatenate(self, other):
     if self.matches.Constant:
         return other
 
-    if self.matches.Sequence and other.matches.Sequence:
+    elif self.matches.Sequence and other.matches.Sequence:
         return Expression.Sequence(vals=self.vals + other.vals)
-    if self.matches.Sequence:
+
+    elif self.matches.Sequence:
         return Expression.Sequence(vals=self.vals + (other,))
-    if other.matches.Sequence:
+
+    elif other.matches.Sequence:
         return Expression.Sequence(vals=TupleOf(Expression)((self,)) + other.vals)
-    return Expression.Sequence(vals=(self, other))
+
+    else:
+        return Expression.Sequence(vals=(self, other))
 
 
 def expr_str(self):

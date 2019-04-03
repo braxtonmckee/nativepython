@@ -46,7 +46,7 @@ class ExpressionConversionContext(object):
 
     def __init__(self, functionContext):
         self.functionContext = functionContext
-        self.intermediates = []
+        self.intermediates = []  # list of ExpressionIntermediate objects
         self.teardowns = []
 
     @property
@@ -75,12 +75,20 @@ class ExpressionConversionContext(object):
         assert t.is_empty, t
         return TypedExpression(self, native_ast.nullExpr, t, False)
 
-    def pushPod(self, type, expression):
-        """stash an expression that generates POD passed as a value"""
-        type = typeWrapper(type)
+    def pushPod(self, typ, expression):
+        """stash an expression that generates POD passed as a value
 
-        assert type.is_pod
-        assert not type.is_pass_by_ref
+        Parameters
+        ----------
+        typ: type
+            the python type of the expression
+        expression: native_type.Expression
+            the expression to let-name
+        """
+        typ = typeWrapper(typ)
+
+        assert typ.is_pod
+        assert not typ.is_pass_by_ref
 
         varname = self.functionContext.let_varname()
 
@@ -88,7 +96,7 @@ class ExpressionConversionContext(object):
             ExpressionIntermediate.Simple(name=varname, expr=expression)
         )
 
-        return TypedExpression(self, native_ast.Expression.Variable(varname), type, False)
+        return TypedExpression(self, native_ast.Expression.Variable(varname), typ, False)
 
     def pushLet(self, type, expression, isReference):
         """Push an arbitrary expression onto the stack."""
@@ -300,7 +308,10 @@ class ExpressionConversionContext(object):
                 scope.teardowns = None
 
             def __enter__(scope):
-                scope.counter = self.push(int, lambda counter: counter.expr.store(native_ast.const_int_expr(0)))
+                scope.counter = self.push(
+                    int,
+                    lambda counter: counter.expr.store(native_ast.const_int_expr(0))
+                )
 
                 scope.intermediates = self.intermediates
                 scope.teardowns = self.teardowns
@@ -518,6 +529,7 @@ class ExpressionConversionContext(object):
         )
 
     def convert_expression_ast(self, ast):
+        """ ast: python_ast:Expression"""
         if ast.matches.Attribute:
             attr = ast.attr
             val = self.convert_expression_ast(ast.value)
