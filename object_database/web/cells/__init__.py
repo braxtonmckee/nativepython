@@ -58,4 +58,8 @@ from object_database.web.cells.cells import (
     _PlotUpdater,
 )
 
+from object_database.web.cells.CellsTestMixin import CellsTestMixin
+
+from object_database.web.cells.util import waitForCellsCondition
+
 MAX_FPS = 10

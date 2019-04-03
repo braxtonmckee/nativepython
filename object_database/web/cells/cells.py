@@ -962,9 +962,10 @@ class CardTitle(Cell):
         super().__init__()
 
         self.children = {"____contents__": Cell.makeCell(inner)}
-        self.contents = HTMLElement.div().add_child(
-            HTMLTextContent("____contents__")
-        ).add_class("card-title")
+        self.contents = str(
+            HTMLElement.div()
+            .add_child(HTMLTextContent('____contents__'))
+        )
 
     def sortsAs(self):
         return self.inner.sortsAs()

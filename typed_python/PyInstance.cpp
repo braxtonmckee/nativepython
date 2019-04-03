@@ -241,57 +241,64 @@ PyObject* PyInstance::extractPythonObjectConcrete(Type* eltType, instance_ptr da
 
 // static
 PyObject* PyInstance::tp_new(PyTypeObject *subtype, PyObject *args, PyObject *kwds) {
-    Type* eltType = extractTypeFrom(subtype);
+    try {
+        Type* eltType = extractTypeFrom(subtype);
 
-    if (!guaranteeForwardsResolved(eltType)) {
-        return nullptr;
-    }
-
-    if (isSubclassOfNativeType(subtype)) {
-        PyInstance* self = (PyInstance*)subtype->tp_alloc(subtype, 0);
-
-        try {
-            self->mIteratorOffset = -1;
-            self->mIsMatcher = false;
-
-            self->initialize([&](instance_ptr data) {
-                constructFromPythonArguments(data, eltType, args, kwds);
-            });
-
-            return (PyObject*)self;
-        } catch(PythonExceptionSet& e) {
-            subtype->tp_dealloc((PyObject*)self);
-            return NULL;
-        } catch(std::exception& e) {
-            subtype->tp_dealloc((PyObject*)self);
-
-            PyErr_SetString(PyExc_TypeError, e.what());
-            return NULL;
+        if (!guaranteeForwardsResolved(eltType)) {
+            return nullptr;
         }
 
-        // not reachable
-        assert(false);
+        if (isSubclassOfNativeType(subtype)) {
+            PyInstance* self = (PyInstance*)subtype->tp_alloc(subtype, 0);
 
-    } else {
-        instance_ptr tgt = (instance_ptr)malloc(eltType->bytecount());
+            try {
+                self->mIteratorOffset = -1;
+                self->mIsMatcher = false;
 
-        try {
-            constructFromPythonArguments(tgt, eltType, args, kwds);
-        } catch(std::exception& e) {
+                self->initialize([&](instance_ptr data) {
+                    constructFromPythonArguments(data, eltType, args, kwds);
+                });
+
+                return (PyObject*)self;
+            } catch(PythonExceptionSet& e) {
+                subtype->tp_dealloc((PyObject*)self);
+                return NULL;
+            } catch(std::exception& e) {
+                subtype->tp_dealloc((PyObject*)self);
+
+                PyErr_SetString(PyExc_TypeError, e.what());
+                return NULL;
+            }
+
+            // not reachable
+            assert(false);
+
+        } else {
+            instance_ptr tgt = (instance_ptr)malloc(eltType->bytecount());
+
+            try {
+                constructFromPythonArguments(tgt, eltType, args, kwds);
+            } catch(std::exception& e) {
+                free(tgt);
+                PyErr_SetString(PyExc_TypeError, e.what());
+                return NULL;
+            } catch(PythonExceptionSet& e) {
+                free(tgt);
+                return NULL;
+            }
+
+            PyObject* result = extractPythonObject(tgt, eltType);
+
+            eltType->destroy(tgt);
             free(tgt);
-            PyErr_SetString(PyExc_TypeError, e.what());
-            return NULL;
-        } catch(PythonExceptionSet& e) {
-            free(tgt);
-            return NULL;
+
+            return result;
         }
-
-        PyObject* result = extractPythonObject(tgt, eltType);
-
-        eltType->destroy(tgt);
-        free(tgt);
-
-        return result;
+    } catch(PythonExceptionSet& e) {
+        return NULL;
+    } catch(std::exception& e) {
+        PyErr_SetString(PyExc_TypeError, e.what());
+        return NULL;
     }
 }
 
