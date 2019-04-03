@@ -2377,7 +2377,7 @@ class LoadContentsFromUrl(Cell):
             HTMLElement.div()
             .add_child(
                 HTMLElement.div()
-                .set_attribute('loadtarget%s' % self._identity)
+                .set_attribute('id', 'loadtarget%s' % self._identity)
             )
         )
 
