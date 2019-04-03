@@ -144,16 +144,3 @@ public:
     void assign(instance_ptr self, instance_ptr other);
 };
 
-template<>
-class TypeDetails<str> {
-public:
-    static Type* getType() {
-        static Type* t = StringType::Make();
-        if (t->bytecount() != bytecount) {
-            throw std::runtime_error("somehow we have the wrong bytecount!");
-        }
-        return t;
-    }
-
-    static const uint64_t bytecount = sizeof(void*);
-};

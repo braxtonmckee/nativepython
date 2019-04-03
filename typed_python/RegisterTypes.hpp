@@ -258,7 +258,7 @@ public:
 };
 
 template<>
-class TypeDetails<int32> {
+class TypeDetails<int32_t> {
 public:
     static Type* getType() { return Int32::Make(); }
 
@@ -274,7 +274,7 @@ public:
 };
 
 template<>
-class TypeDetails<int16> {
+class TypeDetails<int16_t> {
 public:
     static Type* getType() { return Int16::Make(); }
 
@@ -290,7 +290,7 @@ public:
 };
 
 template<>
-class TypeDetails<int8> {
+class TypeDetails<int8_t> {
 public:
     static Type* getType() { return Int8::Make(); }
 

@@ -2,7 +2,7 @@
 
 #include "Type.hpp"
 
-class str {
+class String {
     public:
         StringType::layout* mLayout;
         static StringType* getType() {
@@ -10,30 +10,30 @@ class str {
             return t;
         }
 
-        str() {
+        String() {
             mLayout = nullptr;
         }
 
-        str(const char *pc) {
+        String(const char *pc) {
             getType()->constructor((instance_ptr)&mLayout, 1, strlen(pc), pc);
         }
 
-        str(std::string& s) {
+        String(std::string& s) {
             getType()->constructor((instance_ptr)&mLayout, 1, s.length(), s.data());
         }
 
-        str(StringType::layout* l) {
+        String(StringType::layout* l) {
 	        getType()->assign(
                (instance_ptr)&mLayout,
                (instance_ptr)&l
                );
         }
 
-        ~str() {
+        ~String() {
             StringType::destroyStatic((instance_ptr)&mLayout);
         }
 
-        str(const str& other)
+        String(const String& other)
         {
 	        getType()->copy_constructor(
                (instance_ptr)&mLayout,
@@ -41,7 +41,7 @@ class str {
                );
         }
 
-        str& operator=(const str& other)
+        String& operator=(const String& other)
         {
 	        getType()->assign(
                (instance_ptr)&mLayout,
@@ -59,6 +59,20 @@ class str {
         void deserialize(instance_ptr self, buf_t& buffer) {
             getType()->serialize<buf_t>((instance_ptr)&mLayout, buffer);
         }
+};
+
+template<>
+class TypeDetails<String> {
+public:
+    static Type* getType() {
+        static Type* t = StringType::Make();
+        if (t->bytecount() != bytecount) {
+            throw std::runtime_error("somehow we have the wrong bytecount!");
+        }
+        return t;
+    }
+
+    static const uint64_t bytecount = sizeof(void*);
 };
 
 //templates for TupleOf, ListOf, Dict, ConstDict, OneOf
@@ -206,28 +220,28 @@ public:
 	float& Y() { return *(float*)(data + size1); }
 };
 
-//gen_named_tuple_type("NamedTupleBoolIntStr", X="int64_t", Y="float", Z="str")
+//gen_named_tuple_type("NamedTupleBoolIntStr", X="int64_t", Y="float", Z="String")
 class NamedTupleBoolIntStr {
 private:
 	static const int size1 = sizeof(int64_t);
 	static const int size2 = sizeof(float);
-	static const int size3 = sizeof(str);
+	static const int size3 = sizeof(String);
 	uint8_t data[size1 + size2 + size3];
 public:
 	int64_t& X() { return *(int64_t*)(data); }
 	float& Y() { return *(float*)(data + size1); }
-	str& Z() { return *(str*)(data + size1 + size2); }
+	String& Z() { return *(String*)(data + size1 + size2); }
 };
 
-//gen_named_tuple_type("NamedTupleListAndTupleOfStr", items="ListOf<str>", elements="TupleOf<str>")
+//gen_named_tuple_type("NamedTupleListAndTupleOfStr", items="ListOf<String>", elements="TupleOf<String>")
 class NamedTupleListAndTupleOfStr {
 private:
-	static const int size1 = sizeof(ListOf<str>);
-	static const int size2 = sizeof(TupleOf<str>);
+	static const int size1 = sizeof(ListOf<String>);
+	static const int size2 = sizeof(TupleOf<String>);
 	uint8_t data[size1 + size2];
 public:
-	ListOf<str>& items() { return *(ListOf<str>*)(data); }
-	TupleOf<str>& elements() { return *(TupleOf<str>*)(data + size1); }
+	ListOf<String>& items() { return *(ListOf<String>*)(data); }
+	TupleOf<String>& elements() { return *(TupleOf<String>*)(data + size1); }
 };
 
 
