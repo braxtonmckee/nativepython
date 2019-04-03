@@ -14,32 +14,42 @@
 
 from object_database.web.cells import (
     Badge,
+    Button,
+    ButtonGroup,
     Card,
     CardTitle,
     Cells,
+    Clickable,
     Code,
+    CodeEditor,
     CollapsiblePanel,
     Columns,
     Container,
     ContextualDisplay,
     Dropdown,
+    Expands,
     ensureSubscribedType,
     Grid,
     HeaderBar,
     LargePendingDownloadDisplay,
+    LoadContentsFromUrl,
     Main,
     Modal,
     Octicon,
     Padding,
     Popover,
+    Plot,
     RootCell,
     registerDisplay,
     Sequence,
     Scrollable,
+    Sheet,
+    SingleLineTextBox,
     Slot,
     Span,
     Subscribed,
     SubscribedSequence,
+    # Table,
     Tabs,
     Text,
     Traceback,
@@ -260,9 +270,15 @@ class CellsHTMLTests(unittest.TestCase):
         self.assertHTMLNotEmpty(html)
         self.assertHTMLValid(html)
 
+    @unittest.skip("Skipping until we refactor init")
+    def test_table_html_valid(self):
+        pass
+
     def test_dropdown_html_valid(self):  # CURRENTLY FAILING
         vals = [1, 2, 3, 4]
-        func = lambda x: x + 1
+
+        def func(x):
+            return x + 1
         cell = Dropdown("title", vals, func)
         cell.cells = self.cells
         cell.recalculate()
@@ -310,12 +326,28 @@ class CellsHTMLTests(unittest.TestCase):
         self.assertHTMLNotEmpty(html)
         self.assertHTMLValid(html)
 
+    def test_plot_html_valid(self):
+        cell = Plot("Some plot data subscriptions here")
+        cell.cells = self.cells
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
     def test_popover_html_valid(self):
         cell = Popover(
             Text("This is the content"),
             Text("This is the title"),
             Text("This is the detail")
         )
+        cell.cells = self.cells
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_sheet_html_valid(self):
+        cell = Sheet(["col1", "col2"], 10, lambda x: range(10))
         cell.cells = self.cells
         cell.recalculate()
         html = cell.contents
@@ -337,6 +369,72 @@ class CellsHTMLTests(unittest.TestCase):
         html = cell.contents
         self.assertHTMLNotEmpty(html)
         self.assertHTMLValid(html)
+
+    def test_codeeditor_html_valid(self):
+        cell = CodeEditor()
+        cell.cells = self.cells
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_expands_html_valid(self):
+        cell = Expands(Text("closed"), Text("open"))
+        cell.cells = self.cells
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_loadcontentfromurl_html_valid(self):
+        cell = LoadContentsFromUrl("url")
+        cell._identity = "id"
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_button_html_valid(self):
+        cell = Button(content="", f=lambda x: x)
+        cell.cells = self.cells
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_buttongroup_html_valid(self):
+        b1 = Button(content="", f=lambda x: x)
+        b2 = Button(content="", f=lambda x: x)
+        cell = ButtonGroup([b1, b2])
+        cell.cells = self.cells
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_clickable_html_valid(self):
+        cell = Clickable(Text("content"), f=lambda x: x)
+        cell.cells = self.cells
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
+    def test_singlelinetextbox_html_valid(self):
+        class MockSlot():
+            def __init__(self):
+                pass
+
+            def get(self):
+                return "inputValue"
+
+        cell = SingleLineTextBox(MockSlot())
+        cell.cells = self.cells
+        cell.recalculate()
+        html = cell.contents
+        self.assertHTMLNotEmpty(html)
+        self.assertHTMLValid(html)
+
 
 class CellsTests(unittest.TestCase):
     @classmethod
