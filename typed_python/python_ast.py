@@ -50,6 +50,12 @@ Module = Alternative(
     Suite={"body": TupleOf(Statement)}
 )
 
+CodeLoc = {
+    'line_number': int,
+    'col_offset': int,
+    'filename': str
+}
+
 Statement = Alternative(
     "Statement",
     FunctionDef={
@@ -58,9 +64,7 @@ Statement = Alternative(
         "body": TupleOf(Statement),
         "decorator_list": TupleOf(Expr),
         "returns": OneOf(Expr, None),
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
 
     ClassDef={
@@ -69,303 +73,220 @@ Statement = Alternative(
         "keywords": TupleOf(Keyword),
         "body": TupleOf(Statement),
         "decorator_list": TupleOf(Expr),
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
 
     Return={
         "value": OneOf(Expr, None),
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     Delete={
         "targets": TupleOf(Expr),
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     Assign={
         "targets": TupleOf(Expr),
         "value": Expr,
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     AugAssign={
         "target": Expr,
         "op": BinaryOp,
         "value": Expr,
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     Print={
         "expr": OneOf(Expr, None),
         "values": TupleOf(Expr),
         "nl": int,
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     For={
         "target": Expr,
         "iter": Expr,
         "body": TupleOf(Statement),
         "orelse": TupleOf(Statement),
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     While={
         "test": Expr,
         "body": TupleOf(Statement),
         "orelse": TupleOf(Statement),
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     If={
         "test": Expr,
         "body": TupleOf(Statement),
         "orelse": TupleOf(Statement),
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     With={
         "items": TupleOf(WithItem),
         "body": TupleOf(Statement),
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     Raise={
         "exc": OneOf(Expr, None),
         "cause": OneOf(Expr, None),
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     Try={
         "body": TupleOf(Statement),
         "handlers": TupleOf(ExceptionHandler),
         "orelse": TupleOf(Statement),
         "finalbody": TupleOf(Statement),
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     Assert={
         "test": Expr,
         "msg": OneOf(Expr, None),
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     Import={
         "names": TupleOf(Alias),
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     ImportFrom={
         "module": OneOf(str, TupleOf(str)),
         "names": OneOf(Alias, TupleOf(Alias)),
         "level": OneOf(int, None),
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     Global={
         "names": TupleOf(str),
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     Expr={
         "value": Expr,
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     Pass={
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     Break={
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     Continue={
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
-    }
+        **CodeLoc
+    },
 )
+
 
 Expr = Alternative(
     "Expr",
     BoolOp={
         "op": BooleanOp,
         "values": TupleOf(Expr),
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     BinOp={
         "left": Expr,
         "op": BinaryOp,
         "right": Expr,
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     UnaryOp={
         "op": UnaryOp,
         "operand": Expr,
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     Lambda={
         "args": Arguments,
         "body": Expr,
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     IfExp={
         "test": Expr,
         "body": Expr,
         "orelse": Expr,
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     Dict={
         "keys": TupleOf(Expr),
         "values": TupleOf(Expr),
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     Set={
         "elts": TupleOf(Expr),
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     ListComp={
         "elt": Expr,
         "generators": TupleOf(Comprehension),
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     SetComp={
         "elt": Expr,
         "generators": TupleOf(Comprehension),
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     DictComp={
         "key": Expr,
         "value": Expr,
         "generators": TupleOf(Comprehension),
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     GeneratorExp={
         "elt": Expr,
         "generators": TupleOf(Comprehension),
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     Yield={
         "value": OneOf(Expr, None),
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     Compare={
         "left": Expr,
         "ops": TupleOf(ComparisonOp),
         "comparators": TupleOf(Expr),
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     Call={
         "func": Expr,
         "args": TupleOf(Expr),
         "keywords": TupleOf(Keyword),
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     Num={
         "n": NumericConstant,
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     Str={
         "s": str,
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     Attribute={
         "value": Expr,
         "attr": str,
         "ctx": ExprContext,
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     Subscript={
         "value": Expr,
         "slice": Slice,
         "ctx": ExprContext,
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     Name={
         "id": str,
         "ctx": ExprContext,
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     List={
         "elts": TupleOf(Expr),
         "ctx": ExprContext,
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     Tuple={
         "elts": TupleOf(Expr),
         "ctx": ExprContext,
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     },
     Starred={
         "value": Expr,
         "ctx": ExprContext,
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
-    }
+        **CodeLoc
+    },
 )
 
 NumericConstant = Alternative(
@@ -460,9 +381,7 @@ ExceptionHandler = Alternative(
         "type": OneOf(Expr, None),
         "name": OneOf(str, None),
         "body": TupleOf(Statement),
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     }
 )
 
@@ -483,9 +402,7 @@ Arg = Alternative(
     Item={
         'arg': str,
         'annotation': OneOf(Expr, None),
-        'line_number': int,
-        'col_offset': int,
-        'filename': str
+        **CodeLoc
     }
 )
 
