@@ -349,3 +349,11 @@ class TestListOfCompilation(unittest.TestCase):
         y = dupList(x)
         x[0] = 100
         self.assertEqual(y[0], 1)
+
+    def test_list_short_circut_if(self):
+        @Compiled
+        def chkList(x: ListOf(int)):
+            return len(x) > 0 and x[0]
+
+        x = ListOf(int)([])
+        self.assertFalse(chkList(x))

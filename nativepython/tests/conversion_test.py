@@ -55,17 +55,42 @@ class TestCompilationStructures(unittest.TestCase):
 
         self.checkFunctionOfIntegers(f)
 
-    def test_boolean_operators(self):
+    def test_boolean_and(self):
         @Compiled
         def f(x: int, y: int, z: int) -> bool:
             return x and y and z
 
-        self.assertEqual(f(0, 1, 1), False)
-        self.assertEqual(f(0, 0, 1), False)
         self.assertEqual(f(0, 0, 0), False)
+        self.assertEqual(f(0, 0, 1), False)
+        self.assertEqual(f(0, 1, 0), False)
+        self.assertEqual(f(0, 1, 1), False)
         self.assertEqual(f(1, 0, 0), False)
+        self.assertEqual(f(1, 0, 1), False)
         self.assertEqual(f(1, 1, 0), False)
         self.assertEqual(f(1, 1, 1), True)
+
+    def test_boolean_or(self):
+        @Compiled
+        def f(x: int, y: int, z: int) -> bool:
+            return x or y or z
+
+        self.assertEqual(f(0, 0, 0), False)
+        self.assertEqual(f(0, 0, 1), True)
+        self.assertEqual(f(0, 1, 0), True)
+        self.assertEqual(f(0, 1, 1), True)
+        self.assertEqual(f(1, 0, 0), True)
+        self.assertEqual(f(1, 0, 1), True)
+        self.assertEqual(f(1, 1, 0), True)
+        self.assertEqual(f(1, 1, 1), True)
+
+    def test_boolean_operators(self):
+        @Compiled
+        def f(x: int, y: int, z: str) -> bool:
+            return x and y and z
+
+        self.assertEqual(f(0, 1, "s"), False)
+        with self.assertRaises(TypeError):
+            f(1, 1, "s")
 
     def test_object_to_int_conversion(self):
         @Compiled

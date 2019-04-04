@@ -140,6 +140,13 @@ class TypedExpression(object):
     def toBool(self):
         return self.expr_type.convert_to_type(self.context, self, typeWrapper(Bool))
 
+    @staticmethod
+    def asBool(typedExpressionOrNone):
+        if typedExpressionOrNone is not None:
+            return typedExpressionOrNone.toBool()
+        else:
+            return None
+
     def __str__(self):
         return "TypedExpression(%s%s)" % (self.expr_type, ",[ref]" if self.isReference else "")
 

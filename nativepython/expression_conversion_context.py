@@ -252,10 +252,12 @@ class ExpressionConversionContext(object):
                 self.intermediates = []
                 self.teardowns = []
 
+                scope.expr = None
+
                 return scope
 
             def __exit__(scope, *args):
-                scope.result = self.finalize(None)
+                scope.result = self.finalize(scope.expr)
 
                 self.intermediates = scope.intermediates
                 self.teardowns = scope.teardowns
@@ -557,69 +559,28 @@ class ExpressionConversionContext(object):
             return pythonObjectRepresentation(self, ast.s)
 
         if ast.matches.BoolOp:
-            values = []
-            for v in ast.values:
-                v = self.convert_expression_ast(v)
-                if v is not None:
-                    v = v.toBool()
-                values.append(v)
+            def convertBoolOp(depth=0):
+                with self.subcontext() as sc:
+                    value = self.convert_expression_ast(ast.values[depth])
+                    value = TypedExpression.asBool(value)
+                    if value is not None:
+                        if depth == len(ast.values) - 1:
+                            sc.expr = value.expr
+                        else:
+                            tail_expr = convertBoolOp(depth + 1)
 
-            op = ast.op
+                            if ast.op.matches.And:
+                                sc.expr = native_ast.Expression.Branch(
+                                    cond=value.expr, true=tail_expr, false=native_ast.falseExpr)
+                            elif ast.op.matches.Or:
+                                sc.expr = native_ast.Expression.Branch(
+                                    cond=value.expr, true=native_ast.trueExpr, false=tail_expr)
+                            else:
+                                raise Exception(f"Unknown kind of Boolean operator: {ast.op.Name}")
 
-            expr_so_far = []
+                return sc.result
 
-            for v in ast.values:
-                v = self.convert_expression_ast(v)
-                if v is None:
-                    expr_so_far.append(None)
-                    break
-                v = v.toBool()
-                if v is None:
-                    expr_so_far.append(None)
-                    break
-
-                expr_so_far.append(v.expr)
-
-                if expr_so_far[-1] is None:
-                    if len(expr_so_far) == 1:
-                        return None
-                elif expr_so_far[-1].matches.Constant:
-                    if (expr_so_far[-1].val.val and op.matches.Or
-                            or (not expr_so_far[-1].val.val) and op.matches.And):
-                        # this is a short-circuit
-                        if len(expr_so_far) == 1:
-                            return expr_so_far[0]
-
-                        return TypedExpression(
-                            self,
-                            native_ast.Expression.Sequence(expr_so_far),
-                            typeWrapper(bool),
-                            False
-                        )
-                    else:
-                        expr_so_far.pop()
-
-            if not expr_so_far:
-                if op.matches.Or:
-                    # must have had all False constants
-                    return TypedExpression(self, native_ast.falseExpr, typeWrapper(bool), False)
-                else:
-                    # must have had all True constants
-                    return TypedExpression(self, native_ast.trueExpr, typeWrapper(bool), False)
-
-            while len(expr_so_far) > 1:
-                lhs, rhs = expr_so_far[-2], expr_so_far[-1]
-                expr_so_far.pop()
-                expr_so_far.pop()
-
-                if op.matches.And:
-                    new_expr = native_ast.Expression.Branch(cond=lhs, true=rhs, false=native_ast.falseExpr)
-                else:
-                    new_expr = native_ast.Expression.Branch(cond=lhs, true=native_ast.trueExpr, false=rhs)
-
-                expr_so_far.append(new_expr)
-
-            return TypedExpression(self, expr_so_far[0], typeWrapper(bool), False)
+            return TypedExpression(self, convertBoolOp(), typeWrapper(bool), False)
 
         if ast.matches.BinOp:
             lhs = self.convert_expression_ast(ast.left)

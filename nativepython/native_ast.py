@@ -254,7 +254,7 @@ def expr_str(self):
     if self.matches.Cast:
         return "cast(%s,%s)" % (str(self.left), str(self.to_type))
     if self.matches.Binop:
-        return "((%s)%s(%s))" % (str(self.l), str(self.op), str(self.r))
+        return "((%s)%s(%s))" % (str(self.left), str(self.op), str(self.right))
     if self.matches.Unaryop:
         return "(%s(%s))" % (str(self.op), str(self.operand))
     if self.matches.Variable:
