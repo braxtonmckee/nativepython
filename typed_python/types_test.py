@@ -359,7 +359,7 @@ class NativeTypesTests(unittest.TestCase):
 
     def test_list_of(self):
         L = ListOf(int)
-        self.assertEqual(L.__qualname__, "ListOfType(Int64)")
+        self.assertEqual(L.__qualname__, "ListOf(Int64)")
 
         l1 = L([1, 2, 3, 4])
 
