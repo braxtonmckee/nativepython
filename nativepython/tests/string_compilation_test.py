@@ -12,10 +12,9 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-from typed_python import Function, ListOf
+from typed_python import Function, ListOf, _types
 from typed_python.test_util import currentMemUsageMb
 from nativepython.runtime import Runtime
-
 import unittest
 
 
@@ -384,23 +383,33 @@ class TestStringCompilation(unittest.TestCase):
         ]
         for s in split_strings:
             result = callOrExceptNoType(c_split_2, s)
+            if result[0] == "Normal":
+                self.assertEqual(_types.refcount(result[1]), 1)
             baseline = callOrExceptNoType(lambda: s.split())
-            self.assertEqual(result, baseline, "{} -> {}".format(s, result))
+            self.assertEqual(result, baseline, f"{s} -> {result}")
             result = callOrExceptNoType(c_split_initialized, s, ["a", "b", "c"])
+            if result[0] == "Normal":
+                self.assertEqual(_types.refcount(result[1]), 1)
             self.assertEqual(result, baseline, "{} -> {}".format(s, result))
             for m in range(-2, 10):
                 result = callOrExceptNoType(c_split_3max, s, m)
+                if result[0] == "Normal":
+                    self.assertEqual(_types.refcount(result[1]), 1)
                 baseline = callOrExceptNoType(lambda: s.split(maxsplit=m))
-                self.assertEqual(result, baseline, "{},{}-> {}".format(s, m, result))
+                self.assertEqual(result, baseline, f"{s},{m}-> {result}")
 
             for sep in ["", "j", "s", "d", "t", " ", "as", "jks"]:
                 result = callOrExceptNoType(c_split_3, s, sep)
+                if result[0] == "Normal":
+                    self.assertEqual(_types.refcount(result[1]), 1)
                 baseline = callOrExceptNoType(lambda: s.split(sep))
-                self.assertEqual(result, baseline, "{},{}-> {}".format(s, sep, result))
+                self.assertEqual(result, baseline, f"{s},{sep}-> {result}")
                 for m in range(-2, 10):
                     result = callOrExceptNoType(c_split, s, sep, m)
+                    if result[0] == "Normal":
+                        self.assertEqual(_types.refcount(result[1]), 1)
                     baseline = callOrExceptNoType(lambda: s.split(sep, m))
-                    self.assertEqual(result, baseline, "{},{},{}-> {}".format(s, sep, m, result))
+                    self.assertEqual(result, baseline, f"{s},{sep},{m}-> {result}")
 
         startusage = currentMemUsageMb()
         for i in range(100000):

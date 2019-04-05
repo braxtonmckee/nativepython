@@ -247,6 +247,8 @@ void StringType::split_3(ListOfType::layout* outList, layout* l, int64_t max) {
             destroyStatic((instance_ptr)&remainder);
         }
     }
+    // to force a refcount error, uncomment the line below
+    //listofstring->copy_constructor((instance_ptr)&outList, (instance_ptr)&outList);
 }
 
 void StringType::split(ListOfType::layout* outList, layout* l, layout* sep, int64_t max) {
@@ -466,11 +468,6 @@ StringType::layout* StringType::getsubstr(layout* l, int64_t start, int64_t stop
 
     if (stop > l->pointcount)
         stop = l->pointcount;
-
-//    if (!alwaysAlloc && start==0  && stop == l->pointcount) {
-//        l->refcount++;
-//        return l;
-//    }
 
     size_t datalength = stop - start;
     size_t datasize = datalength * l->bytes_per_codepoint;

@@ -1,10 +1,10 @@
 #pragma once
 
 #include "Type.hpp"
+#include "PyInstance.hpp"
 
 class String {
     public:
-        StringType::layout* mLayout;
         static StringType* getType() {
             static StringType* t = StringType::Make();
             return t;
@@ -14,16 +14,16 @@ class String {
             mLayout = nullptr;
         }
 
-        String(const char *pc) {
+        explicit String(const char *pc) {
             getType()->constructor((instance_ptr)&mLayout, 1, strlen(pc), pc);
         }
 
-        String(std::string& s) {
+        explicit String(std::string& s) {
             getType()->constructor((instance_ptr)&mLayout, 1, s.length(), s.data());
         }
 
-        String(StringType::layout* l) {
-	        getType()->assign(
+        explicit String(StringType::layout* l) {
+            getType()->assign(
                (instance_ptr)&mLayout,
                (instance_ptr)&l
                );
@@ -35,7 +35,7 @@ class String {
 
         String(const String& other)
         {
-	        getType()->copy_constructor(
+            getType()->copy_constructor(
                (instance_ptr)&mLayout,
                (instance_ptr)&other.mLayout
                );
@@ -43,7 +43,7 @@ class String {
 
         String& operator=(const String& other)
         {
-	        getType()->assign(
+            getType()->assign(
                (instance_ptr)&mLayout,
                (instance_ptr)&other.mLayout
                );
@@ -51,14 +51,20 @@ class String {
         }
 
         template<class buf_t>
-        void serialize(instance_ptr self, buf_t& buffer) {
+        void serialize(buf_t& buffer) {
             getType()->serialize<buf_t>((instance_ptr)&mLayout, buffer);
         }
 
         template<class buf_t>
-        void deserialize(instance_ptr self, buf_t& buffer) {
+        void deserialize(buf_t& buffer) {
             getType()->serialize<buf_t>((instance_ptr)&mLayout, buffer);
         }
+
+        StringType::layout* getLayout() const {
+            return mLayout;
+        }
+    private:
+        StringType::layout* mLayout;
 };
 
 template<>
@@ -85,9 +91,10 @@ public:
         return t;
     }
 
-    //static ListOf<element_type> fromPython(PyObject* p) {
-        //pyInstance::copyConstructFromPythonInstance(Type* eltType, instance_ptr tgt, PyObject* pyRepresentation, bool isExplicit);
-    //}
+    static ListOf<element_type> fromPython(PyObject* p) {
+        ListOfType::layout* l = nullptr;
+        PyInstance::copyConstructFromPythonInstance(getType(), (instance_ptr)&l, p, true);
+    }
 
     element_type& operator[](int64_t offset) {
        return *(element_type*)((uint8_t*)mLayout->data + TypeDetails<element_type>::bytecount * offset);
@@ -125,7 +132,7 @@ public:
 
     ListOf(const ListOf& other)
     {
-	    getType()->copy_constructor(
+        getType()->copy_constructor(
                (instance_ptr)&mLayout,
                (instance_ptr)&other.mLayout
                );
@@ -133,7 +140,7 @@ public:
 
     ListOf& operator=(const ListOf& other)
     {
-	    getType()->assign(
+        getType()->assign(
                (instance_ptr)&mLayout,
                (instance_ptr)&other.mLayout
                );
@@ -203,7 +210,7 @@ public:
 
     TupleOf(const TupleOf& other)
     {
-	    getType()->copy_constructor(
+        getType()->copy_constructor(
                (instance_ptr)&mLayout,
                (instance_ptr)&other.mLayout
                );
@@ -211,7 +218,7 @@ public:
 
     TupleOf& operator=(const TupleOf& other)
     {
-	    getType()->assign(
+        getType()->assign(
                (instance_ptr)&mLayout,
                (instance_ptr)&other.mLayout
                );
@@ -234,42 +241,6 @@ public:
     }
 
     static const uint64_t bytecount = sizeof(void*);
-};
-
-// some generated NamedTuples, from
-//gen_named_tuple_type("NamedTupleBoolAndInt", X="int64_t", Y="float")
-class NamedTupleBoolAndInt {
-private:
-	static const int size1 = sizeof(int64_t);
-	static const int size2 = sizeof(float);
-	uint8_t data[size1 + size2];
-public:
-	int64_t& X() { return *(int64_t*)(data); }
-	float& Y() { return *(float*)(data + size1); }
-};
-
-//gen_named_tuple_type("NamedTupleBoolIntStr", X="int64_t", Y="float", Z="String")
-class NamedTupleBoolIntStr {
-private:
-	static const int size1 = sizeof(int64_t);
-	static const int size2 = sizeof(float);
-	static const int size3 = sizeof(String);
-	uint8_t data[size1 + size2 + size3];
-public:
-	int64_t& X() { return *(int64_t*)(data); }
-	float& Y() { return *(float*)(data + size1); }
-	String& Z() { return *(String*)(data + size1 + size2); }
-};
-
-//gen_named_tuple_type("NamedTupleListAndTupleOfStr", items="ListOf<String>", elements="TupleOf<String>")
-class NamedTupleListAndTupleOfStr {
-private:
-	static const int size1 = sizeof(ListOf<String>);
-	static const int size2 = sizeof(TupleOf<String>);
-	uint8_t data[size1 + size2];
-public:
-	ListOf<String>& items() { return *(ListOf<String>*)(data); }
-	TupleOf<String>& elements() { return *(TupleOf<String>*)(data + size1); }
 };
 
 

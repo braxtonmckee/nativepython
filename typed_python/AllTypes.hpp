@@ -28,3 +28,4 @@
 #include "BoundMethodType.hpp"
 
 #include "DirectTypes.hpp"
+#include "GeneratedTypes.hpp"

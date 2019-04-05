@@ -636,7 +636,7 @@ PyObject *refcount(PyObject* nullValue, PyObject* args) {
             )) {
         PyErr_Format(
             PyExc_TypeError,
-            "first argument to refcount must be one of ConstDict, TupleOf, or Class, not %S",
+            "first argument to refcount %S not a permitted Type",
             a1
             );
         return NULL;
