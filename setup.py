@@ -61,7 +61,7 @@ setuptools.setup(
     author='Braxton Mckee',
     author_email='braxton.mckee@gmail.com',
     url='https://github.com/braxtonmckee/nativepython',
-    packages=setuptools.find_packages(),
+    packages=setuptools.find_packages(exclude=["experiments", "experiments.*"]),
     cmdclass={'build_ext': NumpyBuildExtension},
     ext_modules=ext_modules,
     setup_requires=[
