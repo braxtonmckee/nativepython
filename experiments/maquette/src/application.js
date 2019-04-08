@@ -5,8 +5,13 @@ import io from 'socket.io-client'
 // set up a basic socket
 var socket = io.connect('http://' + document.domain + ':' + location.port);
 socket.on('connect', function() {
-	socket.emit('my event', {data: 'I\'m connected!'});
+	socket.emit('ok', {data: 'I\'m connected!'});
 });
+
+socket.emit("load");
+socket.on("load", function() {
+	console.log(data);
+})
 
 // we are sticking with maquette notation and style
 var h = maquette.h;

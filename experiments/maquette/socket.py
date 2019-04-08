@@ -3,7 +3,7 @@
 # basic socket io setup
 
 from flask import Flask, jsonify  # , render_template
-from flask_socketio import SocketIO, send, emit
+from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
@@ -13,7 +13,8 @@ socketio = SocketIO(app)
 
 socketData = {
     "tag": "div",
-    "attrs": {"style": "background-color:blue"},
+    "attrs": {
+        "style": "background-color:blue; height: 100%"},
     "children": [
         {
             "tag": "div",
@@ -43,12 +44,12 @@ socketData = {
 
 
 @socketio.on('load')
-def send_body(json):
+def send_body():
     emit('body', jsonify(socketData))
 
 
 @socketio.on('update')
-def send_update(json):
+def send_update():
     emit('update', jsonify(socketData))
 
 
