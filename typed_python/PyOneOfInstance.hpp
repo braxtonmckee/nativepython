@@ -4,9 +4,9 @@
 
 class PyOneOfInstance : public PyInstance {
 public:
-    typedef OneOf modeled_type;
+    typedef OneOfType modeled_type;
 
-    static void copyConstructFromPythonInstanceConcrete(OneOf* oneOf, instance_ptr tgt, PyObject* pyRepresentation, bool isExplicit) {
+    static void copyConstructFromPythonInstanceConcrete(OneOfType* oneOf, instance_ptr tgt, PyObject* pyRepresentation, bool isExplicit) {
         for (long k = 0; k < oneOf->getTypes().size(); k++) {
             Type* subtype = oneOf->getTypes()[k];
 
@@ -35,12 +35,12 @@ public:
         return extractPythonObject(child.second, child.first);
     }
 
-    static bool compare_to_python_concrete(OneOf* t, instance_ptr self, PyObject* other, bool exact, int pyComparisonOp) {
+    static bool compare_to_python_concrete(OneOfType* t, instance_ptr self, PyObject* other, bool exact, int pyComparisonOp) {
         std::pair<Type*, instance_ptr> child = t->unwrap(self);
         return compare_to_python(child.first, child.second, other, exact, pyComparisonOp);
     }
 
-    static void mirrorTypeInformationIntoPyTypeConcrete(OneOf* oneOfT, PyTypeObject* pyType) {
+    static void mirrorTypeInformationIntoPyTypeConcrete(OneOfType* oneOfT, PyTypeObject* pyType) {
         PyObjectStealer types(PyTuple_New(oneOfT->getTypes().size()));
 
         for (long k = 0; k < oneOfT->getTypes().size(); k++) {

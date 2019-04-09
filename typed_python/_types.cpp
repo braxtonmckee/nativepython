@@ -129,7 +129,7 @@ PyObject *MakeOneOfType(PyObject* nullValue, PyObject* args) {
         }
     }
 
-    PyObject* typeObj = (PyObject*)PyInstance::typeObj(OneOf::Make(types));
+    PyObject* typeObj = (PyObject*)PyInstance::typeObj(OneOfType::Make(types));
 
     return incref(typeObj);
 }

@@ -57,7 +57,7 @@ class String {
 
         template<class buf_t>
         void deserialize(buf_t& buffer) {
-            getType()->serialize<buf_t>((instance_ptr)&mLayout, buffer);
+            getType()->deserialize<buf_t>((instance_ptr)&mLayout, buffer);
         }
 
         StringType::layout* getLayout() const {
@@ -113,13 +113,13 @@ public:
     }
 
     template<class buf_t>
-    void serialize(instance_ptr self, buf_t& buffer) {
+    void serialize(buf_t& buffer) {
         getType()->serialize<buf_t>((instance_ptr)&mLayout, buffer);
     }
 
     template<class buf_t>
-    void deserialize(instance_ptr self, buf_t& buffer) {
-        getType()->serialize<buf_t>((instance_ptr)&mLayout, buffer);
+    void deserialize(buf_t& buffer) {
+        getType()->deserialize<buf_t>((instance_ptr)&mLayout, buffer);
     }
 
     ListOf() {
@@ -191,13 +191,13 @@ public:
     }
 
     template<class buf_t>
-    void serialize(instance_ptr self, buf_t& buffer) {
+    void serialize(buf_t& buffer) {
         TupleOf::serialize<buf_t>((instance_ptr)&mLayout, buffer);
     }
 
     template<class buf_t>
-    void deserialize(instance_ptr self, buf_t& buffer) {
-        TupleOf::serialize<buf_t>((instance_ptr)&mLayout, buffer);
+    void deserialize(buf_t& buffer) {
+        TupleOf::deserialize<buf_t>((instance_ptr)&mLayout, buffer);
     }
 
     TupleOf() {
@@ -233,7 +233,7 @@ template<class element_type>
 class TypeDetails<TupleOf<element_type>> {
 public:
     static Type* getType() {
-        static Type* t = ListOfType::Make(TypeDetails<element_type>::getType());
+        static Type* t = TupleOf<element_type>::getType();
         if (t->bytecount() != bytecount) {
             throw std::runtime_error("somehow we have the wrong bytecount!");
         }
@@ -243,6 +243,84 @@ public:
     static const uint64_t bytecount = sizeof(void*);
 };
 
+template<class t1, class t2>
+class OneOf {
+public:
+    class layout {
+        uint8_t which;
+        uint8_t data[std::max(TypeDetails<t1>::bytecount, TypeDetails<t2>::bytecount)];
+    };
+private:
+    layout mLayout;
+public:
+    static OneOfType* getType() {
+        static OneOfType* t = OneOfType::Make((std::vector<Type*>){TypeDetails<t1>::getType(), TypeDetails<t2>::getType()});
+
+        return t;
+    }
+
+//    static OneOf<t1, t2> fromPython(PyObject* p) {
+//        OneOfType::layout* l = nullptr;
+//        PyInstance::copyConstructFromPythonInstance(getType(), (instance_ptr)&l, p, true);
+//    }
+//
+    std::pair<Type*, instance_ptr> unwrap() {
+        return getType()->unwrap((instance_ptr)&mLayout);
+    }
+
+    size_t size() const {
+        return sizeof(layout);
+    }
+
+    template<class buf_t>
+    void serialize(buf_t& buffer) {
+        getType()->serialize<buf_t>((instance_ptr)&mLayout, buffer);
+    }
+
+    template<class buf_t>
+    void deserialize(buf_t& buffer) {
+        getType()->deserialize<buf_t>((instance_ptr)&mLayout, buffer);
+    }
+
+    OneOf() {
+        getType()->constructor((instance_ptr)&mLayout);
+    }
+
+    ~OneOf() {
+        getType()->destroy((instance_ptr)&mLayout);
+    }
+
+    OneOf(const OneOf& other)
+    {
+        getType()->copy_constructor(
+               (instance_ptr)&mLayout,
+               (instance_ptr)&other.mLayout
+               );
+    }
+
+    OneOf& operator=(const OneOf& other)
+    {
+        getType()->assign(
+               (instance_ptr)&mLayout,
+               (instance_ptr)&other.mLayout
+               );
+        return *this;
+    }
+};
+
+template<class t1, class t2>
+class TypeDetails<OneOf<t1, t2>> {
+public:
+    static Type* getType() {
+        static Type* t = OneOf<t1, t2>::getType();
+        if (t->bytecount() != bytecount) {
+            throw std::runtime_error("somehow we have the wrong bytecount!");
+        }
+        return t;
+    }
+
+    static const uint64_t bytecount = sizeof(int8_t) + std::max(TypeDetails<t1>::bytecount, TypeDetails<t2>::bytecount);
+};
 
 /*
 

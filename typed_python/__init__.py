@@ -24,6 +24,7 @@ from typed_python._types import (
     Alternative, Value, serialize, deserialize,
     PointerTo, Dict
 )
+from typed_python.generate_types import typed_python_codegen
 
 import typed_python._types as _types
 
@@ -44,3 +45,11 @@ Float64 = _types.Float64()
 NoneType = _types.NoneType()
 String = _types.String()
 Bytes = _types.Bytes()
+
+with open("typed_python/GeneratedTypes.hpp", "w") as f:
+    f.writelines(typed_python_codegen(
+        NamedTupleTwoStrings=NamedTuple(X=str, Y=str),
+        NamedTupleIntFloat=NamedTuple(a=OneOf(int,float), b=float),
+        NamedTupleBoolListOfInt=NamedTuple(X=Bool, Y=ListOf(int)),
+        NamedTupleAttrAndValues=NamedTuple(attributes=TupleOf(str), values=TupleOf(int))
+    ))

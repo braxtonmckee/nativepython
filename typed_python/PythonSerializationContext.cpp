@@ -510,8 +510,8 @@ void PythonSerializationContext::serializeNativeType(Type* nativeType, Serializa
     }
 
     if (nativeType->getTypeCategory() == Type::TypeCategory::catOneOf) {
-        b.write_uint32(((OneOf*)nativeType)->getTypes().size());
-        for (auto t: ((OneOf*)nativeType)->getTypes()) {
+        b.write_uint32(((OneOfType*)nativeType)->getTypes().size());
+        for (auto t: ((OneOfType*)nativeType)->getTypes()) {
             serializeNativeType(t, b);
         }
         return;
@@ -699,7 +699,7 @@ Type* PythonSerializationContext::deserializeNativeTypeUncached(DeserializationB
         for (long k = 0; k < count; k++) {
             types.push_back(deserializeNativeType(b));
         }
-        return ::OneOf::Make(types);
+        return ::OneOfType::Make(types);
     }
 
     if (category == Type::TypeCategory::catPythonObjectOfType) {

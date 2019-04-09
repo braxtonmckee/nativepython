@@ -1,10 +1,10 @@
-// "NamedTupleBoolAndInt"
-//    X=int64_t
-//    Y=float
-class NamedTupleBoolAndInt {
+// "NamedTupleTwoStrings"
+//    X=String
+//    Y=String
+class NamedTupleTwoStrings {
 public:
-    typedef int64_t X_type;
-    typedef float Y_type;
+    typedef String X_type;
+    typedef String Y_type;
     X_type& X() const { return *(X_type*)(data); }
     Y_type& Y() const { return *(Y_type*)(data + size1); }
 private:
@@ -12,23 +12,23 @@ private:
     static const int size2 = sizeof(Y_type);
     uint8_t data[size1 + size2];
 public:
-    NamedTupleBoolAndInt& operator = (const NamedTupleBoolAndInt& other) {
+    NamedTupleTwoStrings& operator = (const NamedTupleTwoStrings& other) {
         X() = other.X();
         Y() = other.Y();
         return *this;
     }
 
-    NamedTupleBoolAndInt(const NamedTupleBoolAndInt& other) {
+    NamedTupleTwoStrings(const NamedTupleTwoStrings& other) {
         new (&X()) X_type(other.X());
         new (&Y()) Y_type(other.Y());
     }
 
-    ~NamedTupleBoolAndInt() {
+    ~NamedTupleTwoStrings() {
         X().~X_type();
         Y().~Y_type();
     }
 
-    NamedTupleBoolAndInt() {
+    NamedTupleTwoStrings() {
         bool initX = false;
         bool initY = false;
         try {
@@ -48,12 +48,12 @@ public:
 };
 
 template <>
-class TypeDetails<NamedTupleBoolAndInt> {
+class TypeDetails<NamedTupleTwoStrings> {
 public:
     static Type* getType() {
         static Type* t = NamedTuple::Make({
-                TypeDetails<NamedTupleBoolAndInt::X_type>::getType(),
-                TypeDetails<NamedTupleBoolAndInt::Y_type>::getType()
+                TypeDetails<NamedTupleTwoStrings::X_type>::getType(),
+                TypeDetails<NamedTupleTwoStrings::Y_type>::getType()
             },{
                 "X",
                 "Y"
@@ -64,63 +64,122 @@ public:
         return t;
     }
     static const uint64_t bytecount = 
-        sizeof(NamedTupleBoolAndInt::X_type) +
-        sizeof(NamedTupleBoolAndInt::Y_type);
+        sizeof(NamedTupleTwoStrings::X_type) +
+        sizeof(NamedTupleTwoStrings::Y_type);
 };
 
-// "NamedTupleBoolIntStr"
-//    X=int64_t
-//    Y=float
-//    Z=String
-class NamedTupleBoolIntStr {
+// "NamedTupleIntFloat"
+//    a=OneOf<int64_t, double>
+//    b=double
+class NamedTupleIntFloat {
 public:
-    typedef int64_t X_type;
-    typedef float Y_type;
-    typedef String Z_type;
-    X_type& X() const { return *(X_type*)(data); }
-    Y_type& Y() const { return *(Y_type*)(data + size1); }
-    Z_type& Z() const { return *(Z_type*)(data + size1 + size2); }
+    typedef OneOf<int64_t, double> a_type;
+    typedef double b_type;
+    a_type& a() const { return *(a_type*)(data); }
+    b_type& b() const { return *(b_type*)(data + size1); }
 private:
-    static const int size1 = sizeof(X_type);
-    static const int size2 = sizeof(Y_type);
-    static const int size3 = sizeof(Z_type);
-    uint8_t data[size1 + size2 + size3];
+    static const int size1 = sizeof(a_type);
+    static const int size2 = sizeof(b_type);
+    uint8_t data[size1 + size2];
 public:
-    NamedTupleBoolIntStr& operator = (const NamedTupleBoolIntStr& other) {
-        X() = other.X();
-        Y() = other.Y();
-        Z() = other.Z();
+    NamedTupleIntFloat& operator = (const NamedTupleIntFloat& other) {
+        a() = other.a();
+        b() = other.b();
         return *this;
     }
 
-    NamedTupleBoolIntStr(const NamedTupleBoolIntStr& other) {
+    NamedTupleIntFloat(const NamedTupleIntFloat& other) {
+        new (&a()) a_type(other.a());
+        new (&b()) b_type(other.b());
+    }
+
+    ~NamedTupleIntFloat() {
+        a().~a_type();
+        b().~b_type();
+    }
+
+    NamedTupleIntFloat() {
+        bool inita = false;
+        bool initb = false;
+        try {
+            new (&a()) a_type();
+            inita = true;
+            new (&b()) b_type();
+            initb = true;
+        } catch(...) {
+            try {
+                if (inita) a().~a_type();
+                if (initb) b().~b_type();
+            } catch(...) {
+            }
+            throw;
+        }
+    }
+};
+
+template <>
+class TypeDetails<NamedTupleIntFloat> {
+public:
+    static Type* getType() {
+        static Type* t = NamedTuple::Make({
+                TypeDetails<NamedTupleIntFloat::a_type>::getType(),
+                TypeDetails<NamedTupleIntFloat::b_type>::getType()
+            },{
+                "a",
+                "b"
+            });
+        if (t->bytecount() != bytecount) {
+            throw std::runtime_error("somehow we have the wrong bytecount!");
+        }
+        return t;
+    }
+    static const uint64_t bytecount = 
+        sizeof(NamedTupleIntFloat::a_type) +
+        sizeof(NamedTupleIntFloat::b_type);
+};
+
+// "NamedTupleBoolListOfInt"
+//    X=bool
+//    Y=ListOf<int64_t>
+class NamedTupleBoolListOfInt {
+public:
+    typedef bool X_type;
+    typedef ListOf<int64_t> Y_type;
+    X_type& X() const { return *(X_type*)(data); }
+    Y_type& Y() const { return *(Y_type*)(data + size1); }
+private:
+    static const int size1 = sizeof(X_type);
+    static const int size2 = sizeof(Y_type);
+    uint8_t data[size1 + size2];
+public:
+    NamedTupleBoolListOfInt& operator = (const NamedTupleBoolListOfInt& other) {
+        X() = other.X();
+        Y() = other.Y();
+        return *this;
+    }
+
+    NamedTupleBoolListOfInt(const NamedTupleBoolListOfInt& other) {
         new (&X()) X_type(other.X());
         new (&Y()) Y_type(other.Y());
-        new (&Z()) Z_type(other.Z());
     }
 
-    ~NamedTupleBoolIntStr() {
+    ~NamedTupleBoolListOfInt() {
         X().~X_type();
         Y().~Y_type();
-        Z().~Z_type();
     }
 
-    NamedTupleBoolIntStr() {
+    NamedTupleBoolListOfInt() {
         bool initX = false;
         bool initY = false;
-        bool initZ = false;
         try {
             new (&X()) X_type();
             initX = true;
             new (&Y()) Y_type();
             initY = true;
-            new (&Z()) Z_type();
-            initZ = true;
         } catch(...) {
             try {
                 if (initX) X().~X_type();
                 if (initY) Y().~Y_type();
-                if (initZ) Z().~Z_type();
             } catch(...) {
             }
             throw;
@@ -129,17 +188,15 @@ public:
 };
 
 template <>
-class TypeDetails<NamedTupleBoolIntStr> {
+class TypeDetails<NamedTupleBoolListOfInt> {
 public:
     static Type* getType() {
         static Type* t = NamedTuple::Make({
-                TypeDetails<NamedTupleBoolIntStr::X_type>::getType(),
-                TypeDetails<NamedTupleBoolIntStr::Y_type>::getType(),
-                TypeDetails<NamedTupleBoolIntStr::Z_type>::getType()
+                TypeDetails<NamedTupleBoolListOfInt::X_type>::getType(),
+                TypeDetails<NamedTupleBoolListOfInt::Y_type>::getType()
             },{
                 "X",
-                "Y",
-                "Z"
+                "Y"
             });
         if (t->bytecount() != bytecount) {
             throw std::runtime_error("somehow we have the wrong bytecount!");
@@ -147,53 +204,52 @@ public:
         return t;
     }
     static const uint64_t bytecount = 
-        sizeof(NamedTupleBoolIntStr::X_type) +
-        sizeof(NamedTupleBoolIntStr::Y_type) +
-        sizeof(NamedTupleBoolIntStr::Z_type);
+        sizeof(NamedTupleBoolListOfInt::X_type) +
+        sizeof(NamedTupleBoolListOfInt::Y_type);
 };
 
-// "NamedTupleListAndTupleOfStr"
-//    items=ListOf<String>
-//    elements=TupleOf<String>
-class NamedTupleListAndTupleOfStr {
+// "NamedTupleAttrAndValues"
+//    attributes=TupleOf<String>
+//    values=TupleOf<int64_t>
+class NamedTupleAttrAndValues {
 public:
-    typedef ListOf<String> items_type;
-    typedef TupleOf<String> elements_type;
-    items_type& items() const { return *(items_type*)(data); }
-    elements_type& elements() const { return *(elements_type*)(data + size1); }
+    typedef TupleOf<String> attributes_type;
+    typedef TupleOf<int64_t> values_type;
+    attributes_type& attributes() const { return *(attributes_type*)(data); }
+    values_type& values() const { return *(values_type*)(data + size1); }
 private:
-    static const int size1 = sizeof(items_type);
-    static const int size2 = sizeof(elements_type);
+    static const int size1 = sizeof(attributes_type);
+    static const int size2 = sizeof(values_type);
     uint8_t data[size1 + size2];
 public:
-    NamedTupleListAndTupleOfStr& operator = (const NamedTupleListAndTupleOfStr& other) {
-        items() = other.items();
-        elements() = other.elements();
+    NamedTupleAttrAndValues& operator = (const NamedTupleAttrAndValues& other) {
+        attributes() = other.attributes();
+        values() = other.values();
         return *this;
     }
 
-    NamedTupleListAndTupleOfStr(const NamedTupleListAndTupleOfStr& other) {
-        new (&items()) items_type(other.items());
-        new (&elements()) elements_type(other.elements());
+    NamedTupleAttrAndValues(const NamedTupleAttrAndValues& other) {
+        new (&attributes()) attributes_type(other.attributes());
+        new (&values()) values_type(other.values());
     }
 
-    ~NamedTupleListAndTupleOfStr() {
-        items().~items_type();
-        elements().~elements_type();
+    ~NamedTupleAttrAndValues() {
+        attributes().~attributes_type();
+        values().~values_type();
     }
 
-    NamedTupleListAndTupleOfStr() {
-        bool inititems = false;
-        bool initelements = false;
+    NamedTupleAttrAndValues() {
+        bool initattributes = false;
+        bool initvalues = false;
         try {
-            new (&items()) items_type();
-            inititems = true;
-            new (&elements()) elements_type();
-            initelements = true;
+            new (&attributes()) attributes_type();
+            initattributes = true;
+            new (&values()) values_type();
+            initvalues = true;
         } catch(...) {
             try {
-                if (inititems) items().~items_type();
-                if (initelements) elements().~elements_type();
+                if (initattributes) attributes().~attributes_type();
+                if (initvalues) values().~values_type();
             } catch(...) {
             }
             throw;
@@ -202,15 +258,15 @@ public:
 };
 
 template <>
-class TypeDetails<NamedTupleListAndTupleOfStr> {
+class TypeDetails<NamedTupleAttrAndValues> {
 public:
     static Type* getType() {
         static Type* t = NamedTuple::Make({
-                TypeDetails<NamedTupleListAndTupleOfStr::items_type>::getType(),
-                TypeDetails<NamedTupleListAndTupleOfStr::elements_type>::getType()
+                TypeDetails<NamedTupleAttrAndValues::attributes_type>::getType(),
+                TypeDetails<NamedTupleAttrAndValues::values_type>::getType()
             },{
-                "items",
-                "elements"
+                "attributes",
+                "values"
             });
         if (t->bytecount() != bytecount) {
             throw std::runtime_error("somehow we have the wrong bytecount!");
@@ -218,77 +274,7 @@ public:
         return t;
     }
     static const uint64_t bytecount = 
-        sizeof(NamedTupleListAndTupleOfStr::items_type) +
-        sizeof(NamedTupleListAndTupleOfStr::elements_type);
-};
-
-// "NamedTupleTwoParts"
-//    first=NamedTupleBoolAndInt
-//    second=NamedTupleListAndTupleOfStr
-class NamedTupleTwoParts {
-public:
-    typedef NamedTupleBoolAndInt first_type;
-    typedef NamedTupleListAndTupleOfStr second_type;
-    first_type& first() const { return *(first_type*)(data); }
-    second_type& second() const { return *(second_type*)(data + size1); }
-private:
-    static const int size1 = sizeof(first_type);
-    static const int size2 = sizeof(second_type);
-    uint8_t data[size1 + size2];
-public:
-    NamedTupleTwoParts& operator = (const NamedTupleTwoParts& other) {
-        first() = other.first();
-        second() = other.second();
-        return *this;
-    }
-
-    NamedTupleTwoParts(const NamedTupleTwoParts& other) {
-        new (&first()) first_type(other.first());
-        new (&second()) second_type(other.second());
-    }
-
-    ~NamedTupleTwoParts() {
-        first().~first_type();
-        second().~second_type();
-    }
-
-    NamedTupleTwoParts() {
-        bool initfirst = false;
-        bool initsecond = false;
-        try {
-            new (&first()) first_type();
-            initfirst = true;
-            new (&second()) second_type();
-            initsecond = true;
-        } catch(...) {
-            try {
-                if (initfirst) first().~first_type();
-                if (initsecond) second().~second_type();
-            } catch(...) {
-            }
-            throw;
-        }
-    }
-};
-
-template <>
-class TypeDetails<NamedTupleTwoParts> {
-public:
-    static Type* getType() {
-        static Type* t = NamedTuple::Make({
-                TypeDetails<NamedTupleTwoParts::first_type>::getType(),
-                TypeDetails<NamedTupleTwoParts::second_type>::getType()
-            },{
-                "first",
-                "second"
-            });
-        if (t->bytecount() != bytecount) {
-            throw std::runtime_error("somehow we have the wrong bytecount!");
-        }
-        return t;
-    }
-    static const uint64_t bytecount = 
-        sizeof(NamedTupleTwoParts::first_type) +
-        sizeof(NamedTupleTwoParts::second_type);
+        sizeof(NamedTupleAttrAndValues::attributes_type) +
+        sizeof(NamedTupleAttrAndValues::values_type);
 };
 
