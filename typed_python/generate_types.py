@@ -1,4 +1,5 @@
-from typed_python._types import NamedTuple, ListOf, TupleOf
+from typed_python._types import NamedTuple
+# from typed_python._types import ListOf, TupleOf
 
 
 def gen_named_tuple_type(name, **kwargs):
@@ -90,6 +91,7 @@ def gen_named_tuple_type(name, **kwargs):
 
     return [e + "\n" for e in ret]
 
+
 # py type -> c++ direct type
 # Int64 -> int64_t
 # Bool -> bool
@@ -100,18 +102,18 @@ def gen_named_tuple_type(name, **kwargs):
 # Either assume Arb is defined in a previous stage, or keep track of it
 def cpp_type(py_type):
     simple_cats = {
-        "Int64":"int64_t",
-        "UInt64":"uint64_t",
-        "Int32":"uint32_t",
-        "UInt32":"uint32_t",
-        "Int16":"uint16_t",
-        "UInt16":"uint16_t",
-        "Int8":"uint8_t",
-        "UInt8":"uint8_t",
-        "Bool":"bool",
-        "Float64":"double",
-        "Float32":"float",
-        "String":"String"
+        "Int64": "int64_t",
+        "UInt64": "uint64_t",
+        "Int32": "uint32_t",
+        "UInt32": "uint32_t",
+        "Int16": "uint16_t",
+        "UInt16": "uint16_t",
+        "Int8": "uint8_t",
+        "UInt8": "uint8_t",
+        "Bool": "bool",
+        "Float64": "double",
+        "Float32": "float",
+        "String": "String"
     }
     cat = py_type.__typed_python_category__
     if cat in simple_cats.keys():
@@ -127,9 +129,10 @@ def cpp_type(py_type):
         return "{}<{}>".format(cat, cpp_type(py_type.ElementType))
     if cat == 'OneOf':
         return "OneOf<{}>".format(
-             ", ".join([cpp_type(t) for t in py_type.Types])
-             )
+            ", ".join([cpp_type(t) for t in py_type.Types])
+        )
     return "undefined type"
+
 
 def typed_python_codegen(**kwargs):
     ret = []
