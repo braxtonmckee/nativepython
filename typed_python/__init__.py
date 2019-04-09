@@ -46,10 +46,12 @@ NoneType = _types.NoneType()
 String = _types.String()
 Bytes = _types.Bytes()
 
-with open("typed_python/GeneratedTypes.hpp", "w") as f:
-    f.writelines(typed_python_codegen(
-        NamedTupleTwoStrings=NamedTuple(X=str, Y=str),
-        NamedTupleIntFloat=NamedTuple(a=OneOf(int,float), b=float),
-        NamedTupleBoolListOfInt=NamedTuple(X=Bool, Y=ListOf(int)),
-        NamedTupleAttrAndValues=NamedTuple(attributes=TupleOf(str), values=TupleOf(int))
-    ))
+# this is not the right place for this code generation
+# (usage: uncomment, make test, make test)
+# with open("typed_python/GeneratedTypes.hpp", "w") as f:
+#     f.writelines(typed_python_codegen(
+#         NamedTupleTwoStrings=NamedTuple(X=str, Y=str),
+#         NamedTupleIntFloat=NamedTuple(a=OneOf(int,float), b=float),
+#         NamedTupleBoolListOfInt=NamedTuple(X=Bool, Y=ListOf(int)),
+#         NamedTupleAttrAndValues=NamedTuple(attributes=TupleOf(str), values=TupleOf(int))
+#     ))
