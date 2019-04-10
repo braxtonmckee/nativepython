@@ -17,6 +17,7 @@ from object_database.view import current_transaction
 from object_database.util import Timer
 from object_database.web.html.html_gen import HTMLElement, HTMLTextContent
 from typed_python.Codebase import Codebase as TypedPythonCodebase
+from typed_python import Alternative, NamedTuple
 
 MAX_TIMEOUT = 1.0
 MAX_TRIES = 10
@@ -1740,7 +1741,6 @@ class SubscribedSequence(Cell):
                 .add_child(HTMLTextContent("\n".join(spineChildren)))
             )
 
-
 class Popover(Cell):
     def __init__(self, contents, title, detail, width=400):
         super().__init__()
@@ -1795,6 +1795,13 @@ class Popover(Cell):
     def sortsAs(self):
         if '____title__' in self.children:
             return self.children['____title__'].sortsAs()
+
+class DropdownDialog(Popover):
+    """Should look like a dropdown mennu, but behave like a popover, except that you can click inside
+    of it. Clicking outside or on the button should get rid of it.
+    """
+    def __init__(self, buttonText, body):
+        super().__init__(buttonText, None, detail)
 
 
 class Grid(Cell):
@@ -2295,15 +2302,49 @@ class Table(Cell):
 
 
 class Clickable(Cell):
-    def __init__(self, content, f, makeBold=False, makeUnderling=False):
+    # or something similar
+    MousePosition = NamedTuple(
+        # x/y coordinates in pixels relative to the top left of the control
+        x_cell_relative=int,
+        y_cell_relative=int,
+        # x/y coordinates in pixels relative to the start of the click
+        x_click_relative=int,
+        y_click_relative=int,
+        # x/y coordinates in pixels relative to the viewport
+        x_absolute=int,
+        y_absolute=int,
+        dpi=float
+    )
+
+    MouseEvent = Alternative("Clickable.MouseEvent",
+        MouseDown=dict(position=MousePosition),
+        MouseUp=dict(postiion=MousePosition),
+        MouseMove=dict(position=MousePosition, x_delta=int, y_delta=int),
+        Wheel=dict(position=MousePosition, wheel_delta=int)
+    )
+
+    def __init__(self, content, onClick=None, makeBold=False, onMouseEvent=None):
+        """Intercept clicks going into a child cell.
+
+        Args:
+            content - a cell (or contents of a cell) to display inside the clickable.
+            onClick - a method to call if we are clicked. No arguments are given. If none,
+                nothing happens when clicked.
+            onMouseEvent - a method to call with a MouseEvent object during the click stream
+        """
+
         super().__init__()
-        self.f = f
+        self.onClick = onClick
+        self.onMouseEvent = onMouseEvent
         self.content = Cell.makeCell(content)
         self.bold = makeBold
 
+        if self.onMouseEvent is None:
+            raise NotImplementedError()
+
     def calculatedOnClick(self):
-        if isinstance(self.f, str):
-            return quoteForJs("window.location.href = '__url__'".replace("__url__", quoteForJs(self.f, "'")), '"')
+        if isinstance(self.onClick, str):
+            return quoteForJs("window.location.href = '__url__'".replace("__url__", quoteForJs(self.onClick, "'")), '"')
         else:
             return (
                 "cellSocket.sendString(JSON.stringify({'event':'click', 'target_cell': '__identity__'}))"
@@ -2326,10 +2367,56 @@ class Clickable(Cell):
         return self.content.sortsAs()
 
     def onMessage(self, msgFrame):
-        val = self.f()
+        val = self.onClick()
         if isinstance(val, str):
             self.triggerPostscript(quoteForJs("window.location.href = '__url__'".replace(
                 "__url__", quoteForJs(val, "'")), '"'))
+
+
+class ScrollPanel(Cell):
+    """Wrap a pair of scroll-bar controls around a cell.
+
+    The interiorCell is responsible for actually drawing content (it doesn't get
+    scrolled by the browser). We simply place a scrollbar to the right and below it,
+    and allow sliding the scrollbars around to cause the interiorCell to redraw itself.
+
+    Example:
+
+        contentExtent = cells.Slot((10000,10000))
+        visibleExtent = cells.Slot(None)
+
+        def contents():
+            if visibleExtent.get() is None:
+                return None
+            extent = visibleExtent.get()
+
+            return cells.Text(
+                f"Showing x from {extent[0][0]} to {extent[1][0]} "
+                f"and y from {extent[0][1]} to {extent[1][1]}"
+            )
+
+        # return a scroll pane that shows us (as text in the upper left of the
+        # scrollviewport) the currently displayed portion of the 'contentExtent'
+
+        return ScrollPane(contents, contentExtent, visibleExtent)
+    """
+    def __init__(self, interiorCell, contentExtent, visibleExtent):
+        """Initialie a ScrollPane
+
+        Args:
+            interiorCell - a cell to display that consumes the state of the two slots.
+            contentExtent - a Slot indicating how much space the interior
+                could display. For a very large grid, this will be the grid
+                cell count times the width/height of each cell. Can only be
+                changed by the server code, and if it does change, we need
+                to update the javascript state.
+            visibleExtent - a Slot with either None, or ((ul.x, ul.y), (lr.x, lr.y))
+                containing the viewport _within_ contentExtent that's visible
+                on the screen. This is set by the javascript display. interiorCell
+                is responsible for examining this and computing what to show in the upper
+                left corner of the screen.
+        """
+        raise NotImplementedError()
 
 
 class Button(Clickable):
