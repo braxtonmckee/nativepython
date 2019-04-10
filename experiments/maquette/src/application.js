@@ -18,18 +18,20 @@ var socketData = {
 	children: ['ok']
 };
 
-socket.emit("init");
 
 // we are sticking with maquette notation and style
 var h = maquette.h;
 
-socket.on("init", function(data) {
-	console.log('ok');
-	console.log(data);
-	socketData = data;
-	
-	projector.scheduleRender();
-})
+
+function poll() {
+    socket.emit("init");
+    socket.on("init", function(data) {
+        socketData = data;
+        
+        projector.scheduleRender();
+    });
+}
+
 
 function generate(data) {
 	if (data === undefined) {
@@ -55,6 +57,7 @@ function generate(data) {
 // Initializes the projector 
 document.addEventListener('DOMContentLoaded', function () {
 	projector.merge(document.body, render);
+    setInterval(poll, 500);
 });
 
 export function render() {
