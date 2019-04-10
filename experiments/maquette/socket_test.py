@@ -11,10 +11,12 @@ socketio = SocketIO(app)
 
 #  ## globals
 
-socketData = {
+socketData1 = {
     "tag": "div",
     "attrs": {
-        "style": "background-color:blue; height: 100%"},
+        "style": "background-color:blue; height: 100%",
+        "id": "newone"
+    },
     "children": [
         {
             "tag": "div",
@@ -42,16 +44,25 @@ socketData = {
     ]
 }
 
+socketData = {
+    "tag": "div",
+    "attrs": {
+        "style": "background-color:blue; height: 100%",
+        "id": "newone"
+    },
+    "children": ["ok this is something"]
+}
 
-@socketio.on('load')
-def send_body():
-    emit('body', jsonify(socketData))
+
+@socketio.on('message')
+def handle_message(message):
+    print('received message: ' + str(message))
 
 
-@socketio.on('update')
-def send_update():
-    emit('update', jsonify(socketData))
+@socketio.on('init')
+def handle_init():
+    emit('init', socketData)
 
 
 if __name__ == '__main__':
-    socketio.run(app)
+    socketio.run(app, debug=True)

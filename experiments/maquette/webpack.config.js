@@ -1,5 +1,5 @@
 module.exports = {
-  entry: './src/main.ts',
+  entry: './src/application.js',
   output: {
     path: __dirname + '/build/webpack',
     filename: 'bundle.js'

@@ -2,51 +2,39 @@ import { createTextInput } from './components/text-input';
 import * as maquette from 'maquette';
 import io from 'socket.io-client'
 
+var projector = maquette.createProjector();
+
 // set up a basic socket
-var socket = io.connect('http://' + document.domain + ':' + location.port);
+var socket = io.connect('ws://localhost:5000');
 socket.on('connect', function() {
-	socket.emit('ok', {data: 'I\'m connected!'});
+	socket.emit('message', {message: 'I\'m connected!'});
 });
 
-socket.emit("load");
-socket.on("load", function() {
-	console.log(data);
-})
+
+// load initial data
+var socketData = {
+	tag: "div",
+	attrs: {id: 'initial'},
+	children: ['ok']
+};
+
+socket.emit("init");
 
 // we are sticking with maquette notation and style
 var h = maquette.h;
 
-
-const socketData = {
-	tag: "div",
-	attrs: {"style": "background-color:blue"},
-	children: [
-		{
-			tag: "div",
-			attrs: {"style": "color:red"},
-			children: ["a child"]
-		},
-		{
-			tag: "div",
-			attrs: {"style": "color:yellow"},
-			children: ["another child"]
-		},
-		{
-			tag: "div",
-			attrs: {"style": "color:yellow"},
-			children: [
-				{
-					tag: "div",
-					attrs: {
-						"style": "color:green; text-align:center; font-size: 2rem"},
-					children: ["a nested child"]
-				}
-			]
-		}
-	]
-}
+socket.on("init", function(data) {
+	console.log('ok');
+	console.log(data);
+	socketData = data;
+	
+	projector.scheduleRender();
+})
 
 function generate(data) {
+	if (data === undefined) {
+		return h('div', ["no data"]);
+	}
 	if (data["children"].length == 1){
 		let child = data["children"][0];
 		if (typeof(child) === "string") {
@@ -64,6 +52,12 @@ function generate(data) {
 	}
 }
 
+// Initializes the projector 
+document.addEventListener('DOMContentLoaded', function () {
+	projector.merge(document.body, render);
+});
+
 export function render() {
-  return generate(socketData) 
+	console.log(socketData);
+	return generate(socketData) 
 }
