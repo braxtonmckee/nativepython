@@ -61,6 +61,5 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 export function render() {
-	console.log(socketData);
 	return generate(socketData) 
 }
