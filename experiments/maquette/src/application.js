@@ -14,7 +14,7 @@ socket.on('connect', function() {
 // load initial data
 var socketData = {
 	tag: "div",
-	attrs: {id: 'initial'},
+	attrs: {id: 'test-id', style: "height:500px"},
 	children: ['ok']
 };
 
@@ -56,7 +56,11 @@ function generate(data) {
 
 // Initializes the projector 
 document.addEventListener('DOMContentLoaded', function () {
-	projector.merge(document.body, render);
+	projector.append(document.body, render);
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+	projector.replace(document.getElementById("test-id"), render);
     setInterval(poll, 500);
 });
 
