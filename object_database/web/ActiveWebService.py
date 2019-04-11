@@ -363,7 +363,10 @@ class ActiveWebService(ServiceBase):
                     serviceToggles
                 )
 
-            instance = typeObj.fromIdentity(path[3])
+            try:
+                instance = typeObj.fromIdentity(int(path[3]))
+            except ValueError:
+                return Traceback("Invalid object identity")
 
             return (
                 serviceType.serviceDisplay(serviceObj, instance=instance, queryArgs=queryArgs)
